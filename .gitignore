@@ -1,0 +1,8 @@
+/build/
+/dist/
+**/__pycache__/
+*.pyc
+Mods/*/Binaries/
+Mods/*/Intermediate/
+Mods/*/Saved/
+Mods/*/DerivedDataCache/

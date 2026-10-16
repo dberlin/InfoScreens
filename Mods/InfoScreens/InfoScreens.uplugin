@@ -1,0 +1,19 @@
+{
+  "FileVersion": 3,
+  "Version": 0,
+  "VersionName": "0.0.2",
+  "SemVersion": "0.0.2",
+  "GameVersion": "513885",
+  "FriendlyName": "Info Screens",
+  "Description": "Automatic container displays and placeable factory information screens with server-authoritative multiplayer support.",
+  "Category": "Factory",
+  "CanContainContent": true,
+  "RequiredOnRemote": true,
+  "Modules": [
+    { "Name": "InfoScreens", "Type": "Runtime", "LoadingPhase": "PostDefault" }
+  ],
+  "Plugins": [
+    { "Name": "SML", "Enabled": true, "SemVersion": ">=3.12.0 <3.13.0" },
+    { "Name": "AbstractInstance", "Enabled": true, "BasePlugin": true }
+  ]
+}
