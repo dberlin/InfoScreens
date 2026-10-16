@@ -42,6 +42,14 @@ CHUNK_SIZE = 10_000_000  # Matches the official frontend; S3 parts are 1-based.
 MAX_PARTS = 100  # Resolver's actual limit (its older error text says 41).
 POLL_ATTEMPTS = 61  # Immediate check, then 60 ten-second intervals.
 POLL_INTERVAL = 10
+# ficsit.app's dependency schema accepts one comparator, not compound ranges.
+DEPENDENCY_VERSION = re.compile(
+    r"(<=|<|>|>=|\^)?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+    r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?",
+    re.ASCII,
+)
 JSONValue: TypeAlias = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 
 AUTH_QUERY = "query UploadIdentity { getMe { id } }"
@@ -114,6 +122,19 @@ def validate_archive(path: Path) -> str:
                 raise UploadError("Plugin descriptor must have matching release SemVersion, VersionName and integer major Version")
             if descriptor.get("GameVersion") != GAME_CL or descriptor.get("RequiredOnRemote") is not True:
                 raise UploadError(f"Plugin descriptor must target CL{GAME_CL} and require the mod on remote peers")
+            dependencies = descriptor.get("Plugins", [])
+            if not isinstance(dependencies, list):
+                raise UploadError("Plugin dependencies must be a list")
+            for dependency in dependencies:
+                if not isinstance(dependency, dict):
+                    raise UploadError("Plugin dependency must be an object")
+                if "SemVersion" in dependency:
+                    constraint = dependency["SemVersion"]
+                    if not isinstance(constraint, str) or not DEPENDENCY_VERSION.fullmatch(constraint):
+                        raise UploadError(
+                            "Plugin dependency SemVersion must use one ficsit.app-supported "
+                            "comparator and semantic version (for example ^3.12.0), not a compound range"
+                        )
             modules = descriptor.get("Modules")
             if not isinstance(modules, list) or not any(
                 isinstance(module, dict) and module.get("Name") == MOD and module.get("Type") == "Runtime"

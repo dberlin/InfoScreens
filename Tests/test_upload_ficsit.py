@@ -114,6 +114,29 @@ class ArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(uploader.UploadError, "matching release"):
             uploader.validate_archive(self.archive)
 
+    def test_rejects_dependency_constraints_outside_registry_schema(self):
+        for constraint in (">=3.12.0 <3.13.0", "~3.12.0", "3.12", "03.12.0", "3.12.0-01", "", 312):
+            with self.subTest(constraint=constraint):
+                write_archive(self.archive, descriptor={
+                    **DESCRIPTOR,
+                    "Plugins": [{"Name": "SML", "Enabled": True, "SemVersion": constraint}],
+                })
+                with self.assertRaisesRegex(uploader.UploadError, "dependency.*SemVersion"):
+                    uploader.validate_archive(self.archive)
+
+    def test_accepts_registry_dependency_constraints_and_base_plugins(self):
+        for constraint in ("3.12.0", "^3.12.0", ">=3.12.0", "<3.13.0", "<=3.12.0", ">3.11.0",
+                           "3.12.0-beta.1+build.2"):
+            with self.subTest(constraint=constraint):
+                write_archive(self.archive, descriptor={
+                    **DESCRIPTOR,
+                    "Plugins": [
+                        {"Name": "SML", "Enabled": True, "SemVersion": constraint},
+                        {"Name": "AbstractInstance", "Enabled": True, "BasePlugin": True},
+                    ],
+                })
+                self.assertEqual(uploader.validate_archive(self.archive), "0.0.1")
+
     def test_rejects_platform_descriptor_mismatch(self):
         write_archive(self.archive)
         with zipfile.ZipFile(self.archive, "a") as archive:

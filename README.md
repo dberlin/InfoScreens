@@ -60,7 +60,7 @@ Automatic unlock and build-menu categorization are implementation choices. Sink 
 | --- | --- |
 | Game / headers | CL 513885 |
 | Custom engine | UE 5.6.1-CSS, engine CL 83 |
-| SML | 3.12.0; descriptor accepts >=3.12.0 <3.13.0 |
+| SML | Tested with 3.12.0; descriptor uses the registry-supported `^3.12.0` constraint |
 | SDK source | [8eebc9e659f0b2ff4392d2f8cf6e2cff60c8ea49](https://github.com/satisfactorymodding/SatisfactoryModLoader/tree/8eebc9e659f0b2ff4392d2f8cf6e2cff60c8ea49) |
 | Wwise SDK | 2025.1.6.9117 |
 | Wwise integrated plugin | 2025.1.6.9117.4248 |
@@ -130,9 +130,9 @@ python3 Tools/upload_ficsit.py \
 
 Use `--mod-id LISTING_ID` instead of `--mod-reference`, or `--changelog-file /path/to/notes.txt` instead of inline notes. The script validates matching release version metadata from the selected archive (including both 0.0.1 and 0.0.2), checks account/listing access, uploads numbered chunks unchanged, finalizes, and waits for processing. Successful processing can still require scanning/moderator approval. It does not create listings or bypass approval.
 
-This command performs a real upload. If finalization or polling fails, inspect the listing before rerunning: server processing may continue after the client exits. There is no automatic retry or destructive cleanup. Credentials have not been supplied here, so no production release has been uploaded.
+This command performs a real upload. If finalization or polling fails, inspect the listing before rerunning: server processing may continue after the client exits. There is no automatic retry or destructive cleanup.
 
-Verification: 21 uploader tests passed against a localhost HTTP fixture, including exact multipart reconstruction, asynchronous processing, authentication failures, redirect refusal and token redaction. The CLI accepted the real merged package; a live read-only identity query with an invalid session was correctly rejected. No authenticated production upload was performed.
+Verification: 23 uploader tests passed, including dependency-version schema checks, exact multipart reconstruction against a localhost HTTP fixture, asynchronous processing, authentication failures, redirect refusal and token redaction. The user's first production upload exposed a registry-schema rejection of the compound SML constraint `>=3.12.0 <3.13.0`. The corrected 0.0.1 archives use `^3.12.0`, matching the syntax used by published SML 3.12 mods; local upload validation now rejects compound ranges before network access. All other archive payloads and permissions are unchanged. The corrected merged archive passes local validation; authenticated registry acceptance has not yet been verified.
 
 Protocol references: [official uploader](https://github.com/satisfactorymodding/smr-frontend/blob/staging/src/lib/utils/chunked-upload.ts), [authentication](https://github.com/satisfactorymodding/smr-frontend/blob/staging/src/lib/core/graphql.ts), and [API implementation](https://github.com/satisfactorymodding/smr-api/blob/staging/gql/resolver_versions.go).
 
