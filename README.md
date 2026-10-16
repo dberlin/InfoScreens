@@ -1,204 +1,113 @@
 # InfoScreens
 
-Source version **0.0.3** · mod reference **`InfoScreens`** · [source repository](https://github.com/dberlin/InfoScreens)
+**Version 0.0.4** · Mod reference: **`InfoScreens`** · [Source code](https://github.com/dberlin/InfoScreens)
 
-A native Satisfactory mod implementing ContainerScreen-style automatic container displays and standalone machine information screens, with server-authoritative telemetry for multiplayer.
+Inventory and production information screens for Satisfactory, with support for single-player and multiplayer on Linux dedicated servers.
 
-**Release 0.0.3:** adds independent heading and item-list font controls, defaults both to measured Auto-fit, and removes repeated “(configured rate)” suffixes from machine item labels. Existing saved screens and blueprints default to Auto-fit without conversion. Freight support and the blueprint multiplayer fixes remain included. Builds go to `dist/<SemVersion>/`; versioned 0.0.1 and 0.0.2 archives remain preserved.
+## Features
 
-## Behavior implemented in source
+- Automatic inventory screens on storage containers and both sides of freight cars.
+- One automatic screen on each solid or fluid freight platform, centered between its input/output ports.
+- Placeable **Info Screen** and **Big Info Screen** for supported machines, inventories, power storage, and AWESOME Sink information.
+- **Blueprint Info Screen** showing the combined configured input or output rates of a placed blueprint.
+- Item icons, quantities, capacities, progress bars, and fluid volumes in m³.
+- Adjustable screen placement and independent heading and item-list font sizes, with automatic fitting by default.
+- Saved layouts, configuration, and reusable presets.
 
-- Automatic front/back displays on standard storage containers; optional modded-container support and large side panels.
-- Buildable **Info Screen** and **Big Info Screen**, unlocked automatically under Organization / Signs. Normal screens cost two reinforced iron plates; big screens are free, matching the inspected reference assets.
-- Storage quantities/capacity, mixed-inventory slot usage, fluid volume and flows, manufacturing ingredients/products/rates, extractor output, generator fuel/power/supplemental resources/nuclear waste, battery charge and time estimates, and global AWESOME Sink progress/coupons.
-- Item icons, progress bars, and numeric readouts. Dedicated servers create no UMG widgets or render targets.
-- E opens a layout editor: front/back position, rotation and scale, back-panel visibility, independent heading/item-list font controls, Apply, Save Preset, Load Preset, and Close. Presets apply to automatic displays of the same container class. Y/H, U/J and T/G adjust the selected panel's draft position by one centimetre; Apply submits it. Escape closes through the game's interaction UI.
-- Layouts, presets and configuration persist in saves. Automatic displays are recreated from their sources and cannot be independently dismantled or refunded. Standalone screens use normal building/dismantling behavior.
-- Heading and item-list fonts each default to **Auto-fit**, which measures actual text and chooses the largest whole-number size that fits the section in both dimensions. Heading and item widths are fitted independently; the item list receives the height remaining after the heading and compact footer. Manual values are 1–256 in the sign's 1024×768 render-target units and can intentionally clip when oversized. Font choices persist in layouts/presets and replicate through the server; use the same mod version on clients and server.
+### New in 0.0.4
 
-Chat commands:
+- Fixes freight-car screens disappearing in multiplayer.
+- Positions freight-car screens against the car body and keeps them attached as trains move.
+- Adds automatic screens to solid and fluid freight platforms.
 
-| Command | Meaning |
+## Requirements
+
+- Satisfactory CL **513885** or a compatible newer build.
+- Satisfactory Mod Loader **3.12.0** or a compatible 3.x version.
+- Windows Steam or Epic Games client; Linux dedicated servers are supported.
+
+For multiplayer, install the **same InfoScreens version on the server and every client**. Keep the mod installed when joining a server that uses it.
+
+## Installation
+
+### Satisfactory Mod Manager
+
+Find **InfoScreens** in Satisfactory Mod Manager and install it for your game or server profile.
+
+### Manual installation
+
+1. Close the game or stop the server.
+2. Choose the matching archive:
+   - Windows: `InfoScreens-0.0.4-Windows-Install.zip`
+   - Linux dedicated server: `InfoScreens-0.0.4-LinuxServer-Install.zip`
+3. Extract it into the game or server installation folder containing **`FactoryGame`** and **`Engine`**. Allow existing InfoScreens files to be replaced when updating.
+4. Start the game or server.
+
+The resulting descriptor must be at `FactoryGame/Mods/InfoScreens/InfoScreens.uplugin`. Do **not** extract an install ZIP inside `Mods`; it already includes that directory structure. SML must be installed separately and is not replaced by these archives.
+
+`InfoScreens-0.0.4.zip` is the combined package for ficsit.app, not the manual-install archive.
+
+## Using screens
+
+Storage containers, freight cars, and cargo platforms receive screens automatically, including those already present in a save. Empty train platforms and train stations do not receive cargo screens.
+
+Find the placeable screens under **Organization → Signs** in the build menu. Place a normal or big Info Screen within 10 metres of a supported source; it selects the nearest supported source and stays associated with it until that source is removed.
+
+Supported information includes:
+
+- Storage and freight quantities, capacities, and mixed-inventory slot usage.
+- Fluid volume and flow information.
+- Manufacturing ingredients, products, and configured rates.
+- Extractor output and generator fuel, power, and resource information.
+- Battery charge and time estimates.
+- Global AWESOME Sink progress and coupons.
+
+Automatic screens cannot be dismantled separately; removing their source removes its screen. Placeable screens can be dismantled normally.
+
+### Blueprint input and output totals
+
+Place a **Blueprint Info Screen** against a building or foundation belonging to the desired blueprint. Press **E**, choose **Inputs** or **Outputs**, then **Apply**. Use two screens to show both at once.
+
+The screen totals recipe rates across that specific blueprint instance. For example, four manufacturers each requiring 25 sulfur/min and 50 coal/min show:
+
+```text
+100 sulfur/min
+200 coal/min
+```
+
+- Rates reflect configured recipes and clock speeds, not current throughput or inventory. Output amplification affects output totals only.
+- Inputs and outputs are gross totals; ingredients produced elsewhere within the same blueprint are not subtracted.
+- Recipe-based machines such as constructors, assemblers, smelters, foundries, manufacturers, and refineries are included. Extractors, generators, and transport buildings are not included in recipe totals.
+- Each placed blueprint copy is tracked separately. Removing a machine removes its contribution without switching the screen to a neighboring blueprint.
+- Screens can be saved inside Blueprint Designer templates.
+
+If a screen reports no configured item rates, check that it is attached to the intended blueprint and that its production machines have recipes selected. Attaching a screen to an unrelated grouped foundation does not select a nearby factory.
+
+### Layout and fonts
+
+Press **E** on a screen to open its configuration. Adjust the front/back position, rotation, scale, and back-panel visibility, then choose **Apply**.
+
+- Heading and item-list fonts have separate **Auto-fit** controls. Auto-fit chooses the largest size that fits horizontally and vertically.
+- Disable Auto-fit to set a manual size from **1–256**. Oversized manual text can clip.
+- **Save Preset** and **Load Preset** reuse layouts for automatic displays of the same source class.
+- **Y/H**, **U/J**, and **T/G** move the selected panel's draft position by one centimetre. Choose **Apply** to save the adjustment.
+- **Escape** closes the editor.
+
+Freight cars have screens on both long sides. Cargo platforms have one screen on the input/output side. The large-side-panel option does not add extra panels to either.
+
+## Chat commands
+
+These settings apply to the shared game session.
+
+| Command | Effect |
 | --- | --- |
-| `/modscreen ON` / `/modscreen OFF` | Enable/disable automatic displays on modded storage containers and freight wagons |
-| `/modscreen big` | Toggle large automatic side panels |
-| `/cstime <seconds>` | Sampling interval; default 10, accepted range 0.1–3600 |
-| `/csdist <centimetres>` | Player proximity required for updates; default 10000, accepted range 100–1000000 |
+| `/modscreen ON` / `/modscreen OFF` | Enable or disable automatic screens on modded storage containers, freight wagons, and cargo platforms; vanilla sources remain enabled. |
+| `/modscreen big` | Toggle additional large side panels on storage containers. |
+| `/cstime <seconds>` | Set the update interval. Default: `10`; range: `0.1–3600`. |
+| `/csdist <centimetres>` | Set how close a player must be for information to update. Default: `10000` (100 m); range: `100–1000000`. |
 
-`/csdist` controls updates, not display visibility. An out-of-range display can retain its last snapshot.
+`/csdist` controls information updates, not screen visibility. Screens outside the update range can keep showing their last values.
 
-### Blueprint Info Screen
+## Credits
 
-A separate, manually placed buildable under **Organization → Signs**, costing two reinforced iron plates. Place it against a building or foundation belonging to a placed blueprint. Press **E**, select **Inputs** or **Outputs**, then **Apply**.
-
-- Aggregates configured recipe rates by item descriptor across that exact blueprint instance, not a nearby area or every copy of the blueprint.
-- Four machines consuming 25 sulfur/min and 50 coal/min each produce two input rows: **100 sulfur/min** and **200 coal/min**. Ingredient positions and recipe differences do not split matching items into separate rows.
-- Uses configured clock speed and manufacturing speed, independent of current inventory, power, standby state or measured productivity. Output amplification affects output totals only. Fluids and gases display m³/min.
-- Shows gross inputs or gross outputs; internal production/consumption is not netted. Covers recipe-based production machines, including constructors, assemblers, manufacturers and refineries. Resource extractors and fuel generators are not recipe-based and are not included in these totals.
-- Saves the selected mode and blueprint binding. Removing the originally selected building retains the surviving blueprint's totals; removing machines removes their contribution. It never silently switches to a neighboring blueprint.
-- Can be included inside a Blueprint Designer template. Instantiated screens use their own new instance's membership rather than an external template reference.
-- An explicitly selected blueprint takes precedence over the screen's own third-party dismantle group. Smart! and Infinite Zoop can create unnamed blueprint proxies for groups of structures; a screen attached to such a group reports only that group's recipe machines, not nearby factories.
-- Sampling uses the existing `/cstime` and `/csdist` settings. Mode changes apply immediately. Multiple ingredient rows scale down to remain within the display.
-
-### Train freight cars
-
-- Vanilla freight wagons receive automatic displays on both long sides, attached to the wagon. Existing saved wagons and newly built wagons are discovered.
-- Solid cargo shows item count/capacity; mixed cargo shows occupied slots. Fluid/gas cargo shows volume/capacity in m³. Empty wagons with unspecified cargo type show empty slots rather than guessing their next cargo.
-- Uses server-authoritative sampling, proximity settings, layout editing and saved class presets. Removing a wagon removes its automatic screen. Standalone Info Screens can also select nearby freight wagons.
-- `/modscreen big` does not add panels over the couplers: freight's primary pair already occupies both long sides. Modded freight classes follow the modded-container toggle.
-
-
-### Multiplayer ownership
-
-The server alone reads source inventories and machinery. Screen actors replicate display snapshots and layouts; clients render these snapshots rather than reading conditionally replicated inventories. Sampling is shared per source. Player-owned remote-call objects validate editor target, distance, and layout values on the server. Revision tracking preserves newer unsent drafts; request tokens reject replies from closed or replaced editors.
-
-Displays opt out of the game's static factory-proximity index. Attached automatic displays can change position as replication resolves their source; indexing them as stationary factory buildings caused a client crash when the source was removed. Their source buildings remain responsible for factory-area proximity.
-
-The plugin is required on both server and clients. A client-only or server-only installation is not supported by its descriptor.
-
-### Deliberate choices where reference behavior was unclear
-
-Normal and Big Info Screens select a supported source whose collision bounds are within 1000 cm, choosing nearest bounds, then nearest center, then stable actor path for ties. A valid association is retained until the source disappears. Discovery retries when no valid source exists. The original overlap radius and arbitration were not recoverable with confidence. Blueprint Info Screens instead retain an exact blueprint-instance reference.
-
-Automatic unlock and build-menu categorization are implementation choices. Sink displays report the game's global sink tracks, not invented per-building throughput. This project uses newly generated artwork rather than repackaged reference assets. Exact visual parity has not been verified.
-
-## Current toolchain
-
-| Component | Target |
-| --- | --- |
-| Game / headers | CL 513885 |
-| Custom engine | UE 5.6.1-CSS, engine CL 83 |
-| SML | Tested with 3.12.0; descriptor uses the registry-supported `^3.12.0` constraint |
-| SDK source | [8eebc9e659f0b2ff4392d2f8cf6e2cff60c8ea49](https://github.com/satisfactorymodding/SatisfactoryModLoader/tree/8eebc9e659f0b2ff4392d2f8cf6e2cff60c8ea49) |
-| Wwise SDK | 2025.1.6.9117 |
-| Wwise integrated plugin | 2025.1.6.9117.4248 |
-| CLI integration version | 2025.1.6.4248 |
-| Package targets | Windows Steam/EGS clients and Linux dedicated server |
-
-The updated SDK is isolated at `~/satisfactory-modding/info-screens-workspace/sdk`. The older shared starter and runtimes were not upgraded in place. The installed custom engine remains the required current engine; replacing it with stock Unreal is not supported.
-
-### Install Wwise and build
-
-Wwise 2025.1.6 is installed in the isolated SDK. Its SDK headers and libraries live under `Plugins/WwiseSoundEngine/ThirdParty`, not the older `Plugins/Wwise/ThirdParty` location. `~/satisfactory-modding/install-wwise.sh` now runs the commands below for this workspace. For a fresh install, authenticate locally through the CLI; do not put passwords or tokens in source files or chat.
-
-```sh
-~/satisfactory-modding/bin/wwise-cli \
-  --cache-dir ~/satisfactory-modding/info-screens-workspace/wwise-cache \
-  download --sdk-version 2025.1.6.9117 \
-  --filter Packages=SDK \
-  --filter DeploymentPlatforms=Windows_vc160 \
-  --filter DeploymentPlatforms=Windows_vc170 \
-  --filter DeploymentPlatforms=Linux \
-  --filter DeploymentPlatforms= \
-  --filter Packages=Authoring
-
-~/satisfactory-modding/bin/wwise-cli \
-  --cache-dir ~/satisfactory-modding/info-screens-workspace/wwise-cache \
-  integrate-ue --integration-version 2025.1.6.4248 \
-  --project ~/satisfactory-modding/info-screens-workspace/sdk/FactoryGame.uproject
-```
-
-Then, from this repository:
-
-```sh
-source ~/satisfactory-modding/activate.sh
-python Tools/package_mod.py --preflight
-python Tools/package_mod.py
-```
-
-`--preflight` does not mutate the SDK. Packaging stages only this plugin, builds the Linux editor target, imports the original assets, builds the shipping targets, then invokes Alpakit to cook and package Windows clients and Linux servers. It validates native manifests, binaries and cooked content before copying archives to `dist/<SemVersion>/` (currently `dist/0.0.3/`). Detailed logs go to `build/`. Use `--output` to select a different destination.
-
-Do not run another build, cook or integration operation against the same SDK or build Wine prefix concurrently. The workflow refuses its existing locks and unrelated staged plugins; it does not steal ownership.
-
-UnrealBuildTool serializes builds across projects sharing this engine. The script passes `-WaitMutex` directly to UBT; a quiet build may be waiting for another project's build, not compiling. UAT's `-ubtargs=-WaitMutex` embeds the flag inside target arguments and does not enable the global wait, so shipping compilation is performed separately before Alpakit's `-skipbuild` cook/package step.
-
-The installed `msvc/bin/x64/wine-msvc.sh` required a response-file fix: preserve original line boundaries while translating paths. Flattening the whole file caused MSVC LNK1170 above 131070 characters; splitting every argument onto its own line broke CL's separate `/I` argument parsing. Both compiler and linker succeeded with original line boundaries preserved.
-
-After a successful package, individual platform ZIP contents belong in `FactoryGame/Mods/InfoScreens/`, with `InfoScreens.uplugin` directly inside that directory. The merged ZIP has a different platform-directory layout.
-
-For Windows installation, use **`InfoScreens-Windows-Install.zip` from the desired version directory**: close the game and extract into the Satisfactory installation folder containing `FactoryGame` and `Engine`. The ZIP already contains `FactoryGame/Mods/InfoScreens/`. It includes both Steam and EGS binaries and does not include or replace SML. Do not extract this install ZIP inside `Mods`, or its directory prefix will be duplicated.
-
-For Linux dedicated servers, extract **`InfoScreens-LinuxServer-Install.zip` from the same version directory** into the server installation folder containing `FactoryGame` and `Engine`. Both install archives preserve the platform package's file permissions and leave SML untouched. Use the same mod version on clients and server; the client installation stays installed when joining a server running this mod.
-
-For ficsit.app, use **`InfoScreens.zip` from the desired version directory**, the merged Alpakit archive containing `Windows/` and `LinuxServer/`. The `-Install.zip` archives are for manual installation, not uploading. Dropbox filenames include the version, such as `InfoScreens-0.0.1.zip`, to keep releases distinct.
-
-### Upload to ficsit.app
-
-Create the listing on [ficsit.app](https://ficsit.app) with the exact mod reference **`InfoScreens`**, complete its AI-use and network-use disclosures, and obtain listing approval. Link the source repository above. This project was AI-assisted; the mod uses Unreal's multiplayer replication and does not implement external HTTP requests.
-
-Sign in through the website's OAuth flow. The uploader needs the **SMR session token** (the signed-in site's `token` cookie), **not** a GitHub PAT, password or provider access token. Keep it private; supply it through the hidden prompt or `FICSIT_TOKEN` in your environment, never a command-line argument or committed file.
-
-```sh
-python3 Tools/upload_ficsit.py \
-  --archive dist/0.0.3/InfoScreens.zip \
-  --mod-reference InfoScreens \
-  --changelog "Add independent auto-fit heading and item fonts; simplify machine labels" \
-  --stability release
-```
-
-Use `--mod-id LISTING_ID` instead of `--mod-reference`, or `--changelog-file /path/to/notes.txt` instead of inline notes. The script validates matching release version metadata from the selected archive, checks account/listing access, uploads numbered chunks unchanged, finalizes, and waits for processing. Successful processing can still require scanning/moderator approval. It does not create listings or bypass approval.
-
-This command performs a real upload. If finalization or polling fails, inspect the listing before rerunning: server processing may continue after the client exits. There is no automatic retry or destructive cleanup.
-
-Verification: 23 uploader tests passed, including dependency-version schema checks, exact multipart reconstruction against a localhost HTTP fixture, asynchronous processing, authentication failures, redirect refusal and token redaction. The user's first production upload exposed a registry-schema rejection of the compound SML constraint `>=3.12.0 <3.13.0`. The corrected 0.0.1 archives use `^3.12.0`, matching the syntax used by published SML 3.12 mods; local upload validation now rejects compound ranges before network access. All other archive payloads and permissions are unchanged. The corrected merged archive passes local validation; authenticated registry acceptance has not yet been verified.
-
-Protocol references: [official uploader](https://github.com/satisfactorymodding/smr-frontend/blob/staging/src/lib/utils/chunked-upload.ts), [authentication](https://github.com/satisfactorymodding/smr-frontend/blob/staging/src/lib/core/graphql.ts), and [API implementation](https://github.com/satisfactorymodding/smr-api/blob/staging/gql/resolver_versions.go).
-
-### Client prerequisite
-
-The current licensed Windows client is at `~/Satisfactory`; its Steam native-module manifest identifies CL 513885. Runtime verification uses an isolated copy and separate user data rather than modifying that installation. The older isolated CL 502094 client is preserved and is not compatibility evidence.
-
-## Verification performed
-
-- Configured and compiled the host C++ state tests with GCC 16.2.1; CTest passed `multiplayer_edit_ordering` (one executable covering eight state-ordering scenarios). These exercise the production draft/request state classes, not Unreal networking.
-- Ran the custom engine's `UnrealEditor-Cmd` Python asset importer in an isolated, engine-only content-authoring project. It exited 0 with 0 errors and 0 warnings, producing the frame mesh, frame material and icon `.uasset` files in this plugin. This was asset authoring, not a substitute SDK or a mod gameplay launch.
-- Installed the current anonymous Linux dedicated-server runtime in `~/satisfactory-modding/info-screens-workspace/linux-server`, installed official SML 3.12.0, and launched it with isolated user data, loopback binding, unique ports and an immediate quit command. It exited 0 and logged game CL 513885 / SML 3.12.0. **InfoScreens was not installed in that run.**
-- Packaging preflight passes with the installed Wwise 2025.1.6 integration. The updated installer passes `bash -n`; it was not rerun over the completed installation.
-- Checked Python script syntax and regenerated original source art.
-- Built the native Linux editor module successfully against the current SDK. Reimported assets with the native module loaded: exit 0, 0 errors, 18 warnings. The importer updates existing material nodes instead of deleting nodes rooted by native class defaults.
-- Ran all five `InfoScreens.*` Unreal automation tests: the JSON report records 5 successes, 0 failures, 0 warnings. The editor process nevertheless exited 1 because of SDK/engine startup smoke-test errors (uninitialized FactoryGame/SML structs and relative-path assertions), and missing generated Wwise metadata. This is not a clean whole-editor test run.
-- Launched an isolated copy of the current Steam client with SML. NullRHI startup exited 0. DXVK 3.1.1 enabled actual D3D11 menu rendering on the host's llvmpipe renderer after native Vulkan and Wine's built-in D3D11 failed. The Server Manager completed an authenticated local-server join, but the subsequent gameplay connection timed out after severe frame stalls. This was a baseline run without InfoScreens and does not establish sustained multiplayer behavior.
-- Built both Windows shipping targets (Steam and EGS) and the Linux dedicated-server target, then cooked and packaged through Alpakit. Validated each platform archive's CL 513885 descriptor, remote requirement, SML native module manifests, native binaries and cooked content; copied both platform ZIPs and the merged ZIP to `dist/`. Logs: `build/shipping.log` and `build/package.log`.
-- Installed the packaged mod in the isolated Linux server. Startup loaded its native module and cooked assets, registered its subsystem/commands, and exited 0. A separate throwaway native probe then exercised real gameplay actors: fluid buffer, constructor, miner, coal generator, battery and sink readers returned their expected types. A real container seeded with 37 iron plates produced an automatic screen showing 37 with capacity, rejected dismantling, accepted a layout change, and created no widget components on the dedicated server. The authority probe completed with zero failures. This covers idle machine reads and populated storage, not running production chains or client replication. Evidence: `linux-server/infoscreens-startup.log` and `linux-server/infoscreens-probe.log` beneath the workspace above.
-- Joined the real Linux server from the isolated Steam client with InfoScreens installed on both. With fixtures beside the actual player and normal screen relevance, the client received the 37-plate snapshot and the server-edited layout; direct client inventory reading was denied. A full client restart/rejoin received the same existing state. Both client probes completed with zero failures. The NullRHI connection sustained gameplay, and the subsequent D3D11 run also passed these replication checks. Evidence: `windows-client/infoscreens-nearby-client.log`, `windows-client/infoscreens-reconnect-client.log`, `windows-client/infoscreens-visual-client.log`, and `linux-server/infoscreens-nearby-server.log`. These are real network checks, not mocks; visual/UI acceptance remains separate.
-- Saved the isolated server scenario as `InfoScreensPersistenceVerification`, reloaded it without restarting the probe or respawning fixtures, and rejoined from a fresh client process. The automatic screen was recreated, retained its edited layout, and replicated the saved 37-plate inventory. Evidence: `windows-client/infoscreens-after-reload-client.log`.
-- Created a real local single-player session through the game's save/session API and repeated the seven source-type checks, populated-storage sampling, layout application and automatic-display dismantle protection. The single-player authority probe completed with zero failures. Evidence: `windows-client/infoscreens-single-player.log`.
-- Rendered the actual automatic display using D3D11/DXVK: item icon, Storage Container title, Iron Plate row, 37 / 4800 capacity and 0.77% fullness were visible. Opened the native editor with E, rejected an out-of-range edit, then moved within range and applied a keyboard-adjusted layout through the real UI. Server inspection confirmed front X changed from 308 to 309 cm. Save Preset captured a 310 cm draft; after applying 311 cm, Load Preset restored 310 cm. Escape closed the editor. Screenshots: `windows-client/infoscreens-display-settled.png`, `windows-client/infoscreens-editor-visual.png`, `windows-client/infoscreens-focused-apply.png` and `windows-client/infoscreens-accepted-edit.png`. A vanilla welcome overlay obscured part of the view.
-- Submitted actual multiplayer chat commands for large side panels, a 2-second interval and a 12000 cm activation distance; server state reflected each change. An invalid zero interval was rejected without changing the configured interval.
-- Repeated a real multiplayer lifecycle scenario with all seven source categories and both standalone screen sizes. Verified nearest-source association, retention of a valid source, shared preset inheritance by a newly spawned container, automatic-display removal when its container disappears, and reassociation of both standalone sizes to a replacement containing 37 plates. All seven snapshot kinds reached the Windows client; dedicated-server screens had no widget components. The scenario initially caught the proximity-index crash described above; the corrected packages completed on both server and client with zero failures. Evidence: `linux-server/infoscreens-lifecycle-fixed-server.log` and `windows-client/infoscreens-lifecycle-fixed-client.log`.
-- Repeated that lifecycle scenario in a real local single-player session: zero failures. Rendered the Big Info Screen with its reassociated 37 / 4800 inventory and 0.77% fullness. Evidence: `windows-client/infoscreens-lifecycle-single-player.log` and `windows-client/infoscreens-big-single-player-settled.png`; the same vanilla welcome overlay partly obscured the view.
-- Rebuilt and validated the final Windows Steam/EGS and Linux-server packages after the lifecycle fix. ZIP integrity checks passed and no runtime-probe module is included. The host state suite passed again.
-- Added three native blueprint-rate regression cases: the four-machine 100/200 example, output selection, configured speed/clock/amplification, mixed recipes, fluid/gas units and invalid/empty membership. All eight `InfoScreens.*` cases passed with zero test failures or warnings; the whole editor still exited 1 due to the previously documented SDK startup issues. Evidence: `build/blueprint-automation/index.json` and `build/blueprint-automation.log`.
-- Installed the final game-root Windows ZIP into the isolated current Steam runtime and confirmed the existing SML descriptor was unchanged. A real single-player probe constructed the new screen through its recipe hologram against an actual blueprint member. Four real Iron Plate constructors produced 120 ingots/min inputs and 80 plates/min outputs; an adjacent four-machine blueprint was excluded. Installing power shards and an amplifier verified configured clock and output-only amplification while idle. Removing the original anchor retained the group; removed machines no longer contributed. Template serialization cleared/restored external references, and a screen assigned to a copied instance preferred its own membership. The final scenario completed with zero failures. Evidence: `windows-client/infoscreens-blueprint-final-smoke.log`.
-- Reloaded the saved blueprint screen from a fresh game process: output mode, exact proxy binding and the remaining 40 plates/min were restored. In the actual E editor, selected Inputs and clicked Apply; the authority accepted the change and the world screen displayed 60 ingots/min. Final visuals confirmed separated item/rate columns. Evidence: `windows-client/infoscreens-blueprint-final-visual.log`, `windows-client/infoscreens-blueprint-final-applied.png` and `windows-client/infoscreens-blueprint-final-input.png`. Blueprint Designer serialization hooks and copied-instance precedence were exercised, but creating and placing a complete designer blueprint file through the game's UI was not exercised.
-- The user initially reported multiplayer success, then identified a specific failure: Blueprint Info Screens placed on blueprints show no Inputs or Outputs in multiplayer, while single-player works. This supersedes the earlier blanket multiplayer confirmation.
-- Reproduced the binding-precedence failure on the user's factory save in an isolated Linux dedicated server with the exact saved mod versions. Each affected production blueprint contained four refineries and correctly aggregated 90 copper ingots/min plus 90 water/min. Assigning a separate unnamed dismantle-group proxy to the screen then replaced its selected blueprint and emptied both modes. After the fix, the same scenario retained both input rows and 90 copper sheets/min output, with zero regression failures. This reproduces the proxy assignment used by Smart!/Infinite Zoop; it does not claim the user's exact UI action was replayed. Evidence: `linux-server/infoscreens-blueprint-scope-before-server.log` and `linux-server/infoscreens-blueprint-scope-after-server.log`.
-- Validated the rebuilt 0.0.1 packages with a real Windows Steam client connected to the Linux dedicated server. Native buildgun placement selected the production blueprint; assigning an unrelated dismantle group on the server preserved that selection. The client received 120 iron ingots/min inputs, then switched through the player-owned layout RPC and received 80 iron plates/min outputs. The client completed with zero failures. Evidence: `linux-server/infoscreens-blueprint-hotfix-network-server.log` and `windows-client/infoscreens-blueprint-hotfix-network-client.log`.
-- Loaded the user's factory save in the isolated Windows single-player runtime with the rebuilt package. The same grouping regression retained 90 copper ingots/min plus 90 water/min inputs and 90 copper sheets/min output, with zero failures. Evidence: `windows-client/infoscreens-blueprint-hotfix-single-player.log`.
-- All nine native `InfoScreens.*` automation cases passed with zero test failures or warnings, including selected-binding preservation and copied-blueprint rebinding. The whole editor still exited 1 due to the documented SDK startup errors. Evidence: `build/blueprint-hotfix-automation/index.json`. All five rebuilt archives passed CRC, version and SML native-manifest validation; no temporary probe or freight module is shipped.
-- Upgrade both client and server. Dismantle and replace affected screens whose incorrect binding was already saved; the original selected blueprint cannot be recovered from that overwritten reference.
-- Rebuilt 0.0.2 with freight support plus both 0.0.1 hotfixes. All ten native automation cases passed with zero test failures/warnings, including freight cargo transitions and blueprint binding preservation; the editor retains the documented startup-error exit code. Host state tests and all 23 uploader tests passed. All five archives passed integrity/version/native-manifest checks and merged-package upload validation.
-- The packaged 0.0.2 single-player freight scenario showed 37 / 6400 iron plates and 123 / 2400 m³ water, retained attachment during translation/rotation, accepted a layout edit, cleared unloaded cargo and removed the display when the wagon was destroyed. A fresh-process reload restored fluid cargo, layout and attachment. Evidence: `windows-client/infoscreens-freight-002-single-player.log` and `windows-client/infoscreens-freight-002-reload.log`.
-- Joined the Linux dedicated server from the Windows Steam client with a real freight wagon registered on a native rail graph. Separate solid and fluid scenarios replicated 37 / 6400 iron plates and the transition to 123 / 2400 m³ water. Both clients completed with zero failures, confirmed wagon attachment and exclusion from the static source index, and denied direct client inventory reads. The server created no screen widgets. Evidence: `windows-client/infoscreens-freight-002-ontrack-solid-client.log`, `windows-client/infoscreens-freight-002-ontrack-fluid-client.log`, and corresponding `linux-server/infoscreens-freight-002-ontrack-{solid,fluid}.log`. These were stationary on-track multiplayer fixtures; movement and save/reload were exercised separately in single-player.
-- Built and packaged 0.0.3 for Windows Steam/EGS and Linux dedicated servers. All eleven native automation cases passed with zero test failures/warnings, including measured horizontal/vertical font fitting, maximal-fit boundaries, independent font controls and layout validation. The whole editor retains the documented SDK startup-error exit code. Host state tests and all 23 uploader tests passed.
-- Rendered the packaged 0.0.3 sign through D3D11/DXVK with both a two-item blueprint and twelve distinct long ingredient labels/rates. Both fit without text overlap or clipping. Native save and fresh-process reload retained independent manual item/heading sizes. Evidence: `build/font-visual-evidence/auto-two-rows.png`, `build/font-visual-evidence/auto-twelve-rows.png`, `windows-client/infoscreens-font-save.log`, and `windows-client/infoscreens-font-reload.log`.
-- Opened the native E configuration UI at 1280×720, disabled the two Auto-fit controls independently, entered heading size 42 and item size 64, and applied the layout. The editor confirmed the authoritative save and the world sign rendered the smaller heading independently of the item list. Evidence: `build/font-visual-evidence/editor-independent-values-saved.png` and `build/font-visual-evidence/manual-world-sign.png`.
-- A real Windows client joined the Linux dedicated server with 0.0.3 on both. It received distinct heading/item sizes, changed both through the player-owned RPC, and restored both to Auto-fit; each change returned through authoritative replication. The client completed with zero failures. Evidence: `windows-client/infoscreens-font-network-final-pass.log` and `linux-server/infoscreens-font-server.log`.
-
-Evidence includes `build/assets-fixed.log`, `build/automation.log`, `build/automation/index.json`, `build/host/Testing/Temporary/LastTest.log`, and baseline runtime logs/screenshots under `~/satisfactory-modding/info-screens-workspace/{linux-server,windows-client,asset-authoring}`.
-
-Re-run host tests:
-
-```sh
-cmake -S . -B build/host -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/host
-ctest --test-dir build/host --output-on-failure
-```
-
-Native automation tests are under `Mods/InfoScreens/Source/InfoScreens/Private/Tests`; all eleven selected cases passed with the whole-editor caveat above. Verification limits: existing machine fixtures exercised idle typed telemetry, not complete running production chains; concurrent editing was checked through production state-machine tests rather than two simultaneous game clients; modded-container commands were exercised without installing a third-party container mod. Original visual checks were partly obscured by the vanilla welcome overlay. The EGS target was compiled and packaged, not runtime-tested. Blueprint remote construction, replication and mode switching were exercised with real Windows-to-Linux networking. The user's exact Smart!/Infinite Zoop placement gesture and full designer blueprint-file UI workflow were not replayed; the grouping mechanism was reproduced directly on real actors. Temporary native probes are confined to isolated test installations and never shipped.
-
-## Sources
-
-- [ContainerScreen listing](https://ficsit.app/mod/ContainerScreen)
-- [Inspected ContainerScreen asset revision](https://github.com/DellAquila/ContainerScreen/tree/95cab0093f3220cc0e44f96b9d578e213ae208d9)
-- Local installed-toolchain handoff: `~/modding-sf.md` (older starter/runtime versions; not the updated SDK's compatibility authority).
+Inspired by [ContainerScreen](https://ficsit.app/mod/ContainerScreen). InfoScreens uses its own artwork and implementation.

@@ -3,6 +3,7 @@
 #include "InfoScreen.h"
 #include "InfoBlueprintScreen.h"
 #include "Buildables/FGBuildableStorage.h"
+#include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "FGFreightWagon.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -97,7 +98,8 @@ void AInfoScreenSubsystem::UnregisterScreen(AInfoScreen* Screen)
 bool AInfoScreenSubsystem::IsAutomaticSource(const AActor* Source) const
 {
     if (!InfoScreenReader::Supports(Source) ||
-        (!Source->IsA<AFGBuildableStorage>() && !Source->IsA<AFGFreightWagon>()))
+        (!Source->IsA<AFGBuildableStorage>() && !Source->IsA<AFGFreightWagon>()
+            && !Source->IsA<AFGBuildableTrainPlatformCargo>()))
         return false;
     const FString ClassPath = Source->GetClass()->GetPathName();
     return bModdedContainers || ClassPath.StartsWith(TEXT("/Game/")) ||

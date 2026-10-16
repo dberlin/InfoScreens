@@ -9,6 +9,7 @@
 #include "Buildables/FGBuildableResourceExtractor.h"
 #include "Buildables/FGBuildableResourceSink.h"
 #include "Buildables/FGBuildableStorage.h"
+#include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "FGFluidIntegrantInterface.h"
 #include "FGFreightWagon.h"
 #include "FGInventoryComponent.h"
@@ -469,6 +470,7 @@ bool InfoScreenReader::Supports(const AActor* Source)
 {
     return IsValid(Source) && !Source->IsActorBeingDestroyed()
         && (Source->IsA<AFGFreightWagon>() || Source->IsA<AFGBuildableStorage>() || Source->IsA<AFGBuildablePipeReservoir>()
+            || Source->IsA<AFGBuildableTrainPlatformCargo>()
             || Source->IsA<AFGBuildableManufacturer>() || Source->IsA<AFGBuildableResourceExtractor>()
             || Source->IsA<AFGBuildableGenerator>() || Source->IsA<AFGBuildablePowerStorage>()
             || Source->IsA<AFGBuildableResourceSink>());
@@ -496,6 +498,8 @@ bool InfoScreenReader::Read(AActor* Source, FInfoScreenSnapshot& OutSnapshot)
         ReadInventory(Freight->GetFreightInventory(), OutSnapshot, Freight);
     else if (AFGBuildableStorage* Storage = Cast<AFGBuildableStorage>(Source))
         ReadInventory(Storage->GetStorageInventory(), OutSnapshot);
+    else if (AFGBuildableTrainPlatformCargo* Platform = Cast<AFGBuildableTrainPlatformCargo>(Source))
+        ReadInventory(Platform->GetInventory(), OutSnapshot);
     else if (AFGBuildablePipeReservoir* Reservoir = Cast<AFGBuildablePipeReservoir>(Source))
     {
         OutSnapshot.Kind = EInfoScreenKind::FluidBuffer;

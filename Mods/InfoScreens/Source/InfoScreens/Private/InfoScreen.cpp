@@ -1,13 +1,16 @@
 #include "InfoScreen.h"
 
+#include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/StaticMesh.h"
 #include "FGCharacterPlayer.h"
+#include "FGFactoryConnectionComponent.h"
 #include "FGFreightWagon.h"
 #include "FGHUD.h"
+#include "FGPipeConnectionComponent.h"
 #include "FGUseableInterface.h"
 #include "GameFramework/PlayerController.h"
 #include "InfoScreenContent.h"
@@ -33,6 +36,21 @@ namespace
     {
         if (IsValid(Source))
         {
+            if (Source->IsA<AFGFreightWagon>())
+            {
+                TInlineComponentArray<UStaticMeshComponent*> Meshes(Source);
+                for (const UStaticMeshComponent* Mesh : Meshes)
+                {
+                    if (Mesh->GetFName() != AFGFreightWagon::CargoMeshComponentName || !Mesh->GetStaticMesh())
+                        continue;
+                    // Include hidden cargo: unloading must not move the mount out to
+                    // the wheels/undercarriage bounds or leave it floating beside the body.
+                    const FBox Body = Mesh->CalcBounds(Mesh->GetComponentTransform()
+                        .GetRelativeTransform(Source->GetActorTransform())).GetBox();
+                    if (Body.IsValid && !Body.GetExtent().IsNearlyZero())
+                        return Body;
+                }
+            }
             const FBox Bounds = Source->CalculateComponentsBoundingBoxInLocalSpace(true);
             if (Bounds.IsValid && !Bounds.GetExtent().IsNearlyZero())
             {
@@ -40,6 +58,40 @@ namespace
             }
         }
         return FBox(FVector(-100.0f, -100.0f, 0.0f), FVector(100.0f, 100.0f, 200.0f));
+    }
+
+    bool TryCargoPlatformLayout(const AActor* Target, FInfoScreenLayout& Layout)
+    {
+        const FTransform& SourceTransform = Target->GetActorTransform();
+        FVector NormalSum = FVector::ZeroVector;
+        FBox PortBounds(ForceInit);
+        const auto AddPort = [&](const FVector& WorldLocation, const FVector& WorldNormal)
+        {
+            const FVector Normal = SourceTransform.InverseTransformVectorNoScale(WorldNormal).GetSafeNormal2D();
+            if (!Normal.IsNearlyZero())
+            {
+                NormalSum += Normal;
+                PortBounds += SourceTransform.InverseTransformPosition(WorldLocation);
+            }
+        };
+        TInlineComponentArray<UFGFactoryConnectionComponent*> Conveyors(Target);
+        for (const UFGFactoryConnectionComponent* Port : Conveyors)
+            if (Port->GetDirection() != EFactoryConnectionDirection::FCD_SNAP_ONLY)
+                AddPort(Port->GetComponentLocation(), Port->GetConnectorNormal());
+        TInlineComponentArray<UFGPipeConnectionComponent*> Pipes(Target);
+        for (const UFGPipeConnectionComponent* Port : Pipes)
+            if (Port->GetPipeConnectionType() != EPipeConnectionType::PCT_SNAP_ONLY)
+                AddPort(Port->GetComponentLocation(), Port->GetConnectorNormal());
+        const FVector Normal = NormalSum.GetSafeNormal2D();
+        if (!PortBounds.IsValid || Normal.IsNearlyZero())
+            return false;
+
+        // Center between the upper/lower I/O ports, not above them or beyond the
+        // crane's overhang. Their connection plane is 5 cm outside the wall, matching
+        // the frame's 5 cm backing depth at this unit scale.
+        Layout.Front = FTransform(Normal.Rotation(), PortBounds.GetCenter());
+        Layout.bBackVisible = false;
+        return true;
     }
 }
 
@@ -114,6 +166,10 @@ void AInfoScreen::BeginPlay()
     RefreshPresentation();
     if (HasAuthority())
     {
+        // Buildables default to dormancy-driven static spatialization. An attached
+        // wagon display must stay dynamic even while nobody is sampling its cargo.
+        if (bAutomatic && IsValid(Source) && Source->IsA<AFGFreightWagon>())
+            SetNetDormancy(DORM_Awake);
         if (AInfoScreenSubsystem* Subsystem = AInfoScreenSubsystem::Get(GetWorld()))
         {
             Subsystem->RegisterScreen(this);
@@ -244,16 +300,21 @@ void AInfoScreen::UpdateSnapshot(const FInfoScreenSnapshot& NewSnapshot)
 
 FInfoScreenLayout AInfoScreen::DefaultContainerLayout(const AActor* Target)
 {
+    if (IsValid(Target) && Target->IsA<AFGBuildableTrainPlatformCargo>())
+    {
+        FInfoScreenLayout Result;
+        if (TryCargoPlatformLayout(Target, Result))
+            return Result;
+    }
     const FBox Bounds = SourceBounds(Target);
     const FVector Center = Bounds.GetCenter();
     if (IsValid(Target) && Target->IsA<AFGFreightWagon>())
     {
-        // Wagons run along X. Center panels on the upper body, above wheels and away
-        // from both couplers. Keep this layout independent of changing cargo visibility.
+        // Mount on the cargo body's long sides, not the wider undercarriage.
         const float Scale = FMath::Clamp(static_cast<float>(FMath::Min(
             Bounds.GetSize().X / (PanelWidth + 16.0f),
-            Bounds.GetSize().Z * 0.6 / (PanelHeight + 16.0f))), 0.35f, 1.5f);
-        const double Height = Bounds.Min.Z + Bounds.GetSize().Z * 0.65;
+            Bounds.GetSize().Z / (PanelHeight + 16.0f))), 0.35f, 1.5f);
+        const double Height = Center.Z;
         FInfoScreenLayout Result;
         Result.Front = FTransform(FRotator(0.0f, 90.0f, 0.0f),
             FVector(Center.X, Bounds.Max.Y + PanelOffset, Height), FVector(Scale));
@@ -264,6 +325,8 @@ FInfoScreenLayout AInfoScreen::DefaultContainerLayout(const AActor* Target)
     // +X is the front normal of both our frame mesh and UWidgetComponent.
     const float Scale = FMath::Clamp(static_cast<float>(Bounds.GetSize().Y) / (PanelWidth + 16.0f), 0.35f, 1.0f);
     FInfoScreenLayout Result;
+    // A cargo subclass without usable I/O geometry still gets only one panel.
+    Result.bBackVisible = !IsValid(Target) || !Target->IsA<AFGBuildableTrainPlatformCargo>();
     Result.Front = FTransform(FRotator::ZeroRotator,
         FVector(Bounds.Max.X + PanelOffset, Center.Y, Center.Z), FVector(Scale));
     Result.Back = FTransform(FRotator(0.0f, 180.0f, 0.0f),
@@ -286,10 +349,12 @@ void AInfoScreen::RefreshPresentation()
 {
     FTransform Transforms[PanelCount] = {Layout.Front, Layout.Back, FTransform::Identity, FTransform::Identity};
     const bool Freight = IsValid(Source) && Source->IsA<AFGFreightWagon>();
-    // Freight's primary pair already occupies its long sides; never add coupler/end panels.
+    const bool CargoPlatform = IsValid(Source) && Source->IsA<AFGBuildableTrainPlatformCargo>();
+    // Wagons must not gain coupler panels, nor cargo platforms extra non-I/O panels.
+    const bool ExtraSides = bAutomatic && bLargeSides && !Freight && !CargoPlatform;
     bool Visible[PanelCount] = {true, bAutomatic && Layout.bBackVisible,
-        bAutomatic && bLargeSides && !Freight, bAutomatic && bLargeSides && !Freight};
-    if (bAutomatic && bLargeSides && !Freight)
+        ExtraSides, ExtraSides};
+    if (ExtraSides)
     {
         const FBox Bounds = SourceBounds(Source);
         const FVector Center = Bounds.GetCenter();

@@ -8,7 +8,7 @@ public class InfoScreens : ModuleRules
         CppStandard = CppStandardVersion.Cpp20;
         PublicDependencyModuleNames.AddRange(new[] {
             "Core", "CoreUObject", "Engine", "FactoryGame", "SML",
-            "UMG", "Slate", "SlateCore", "InputCore", "NetCore", "GameplayTags",
+            "UMG", "Slate", "SlateCore", "InputCore", "NetCore", "ReplicationGraph", "GameplayTags",
             "PhysicsCore", "DeveloperSettings", "GeometryCollectionEngine",
             "AnimGraphRuntime", "AssetRegistry", "NavigationSystem", "AIModule",
             "GameplayTasks", "RenderCore", "CinematicCamera", "Foliage", "AbstractInstance"

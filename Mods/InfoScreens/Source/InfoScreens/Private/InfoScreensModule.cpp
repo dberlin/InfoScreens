@@ -1,5 +1,6 @@
 #include "InfoScreensModule.h"
 
+#include "InfoScreen.h"
 #include "InfoScreenContent.h"
 #include "InfoScreenRemoteCall.h"
 #include "InfoScreenSubsystem.h"
@@ -9,8 +10,21 @@
 #include "FGRecipeManager.h"
 #include "String/LexFromString.h"
 #include "Modules/ModuleManager.h"
+#include "Replication/FGReplicationGraph.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, InfoScreens)
+class FInfoScreensModule : public FDefaultModuleImpl
+{
+public:
+    virtual void StartupModule() override
+    {
+        // Inherited buildable routing is static, even when an actor is awake.
+        // Dormancy routing keeps fixed signs static and tracks awake wagon signs.
+        UFGReplicationGraph::RegisterCustomClassRepPolicy(AInfoScreen::StaticClass(),
+            EClassRepPolicy::CRP_Spatialize_Dormancy);
+    }
+};
+
+IMPLEMENT_MODULE(FInfoScreensModule, InfoScreens)
 
 UInfoScreensInstanceModule::UInfoScreensInstanceModule()
 {
