@@ -100,7 +100,7 @@ void UInfoScreenEditorWidget::BuildTree()
     Content->AddChildToVerticalBox(MakeEditorText(WidgetTree,
         LOCTEXT("Title", "INFO SCREEN · LAYOUT"), 28, Orange));
     UTextBlock* Description = MakeEditorText(WidgetTree,
-        LOCTEXT("Description", "Transforms are relative to the container (or this standalone screen). Locations use centimeters, rotations use degrees. Changes remain a draft until Apply or Save preset."));
+        LOCTEXT("Description", "Transforms are relative to the container or freight car (or this standalone screen). Locations use centimeters, rotations use degrees. Changes remain a draft until Apply or Save preset."));
     Description->SetAutoWrapText(true);
     Content->AddChildToVerticalBox(Description)->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 18.0f));
 
@@ -140,7 +140,7 @@ void UInfoScreenEditorWidget::BuildTree()
     Hint->SetAutoWrapText(true);
     Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
     UTextBlock* PresetHint = MakeEditorText(WidgetTree,
-        LOCTEXT("PresetHint", "Save preset applies this draft to every screen on the same container type and to future containers. Load preset restores that type's saved server layout."), 17);
+        LOCTEXT("PresetHint", "Save preset applies this draft to every screen on the same source type and to future sources. Load preset restores that type's saved server layout."), 17);
     PresetHint->SetAutoWrapText(true);
     Content->AddChildToVerticalBox(PresetHint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 14.0f));
 

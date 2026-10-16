@@ -1,10 +1,10 @@
 # InfoScreens
 
-Source version **0.0.1** · mod reference **`InfoScreens`** · [source repository](https://github.com/dberlin/InfoScreens)
+Source version **0.0.2** · mod reference **`InfoScreens`** · [source repository](https://github.com/dberlin/InfoScreens)
 
 A native Satisfactory mod implementing ContainerScreen-style automatic container displays and standalone machine information screens, with server-authoritative telemetry for multiplayer.
 
-**Release 0.0.1:** container/machine/blueprint screens. The blueprint binding hotfix preserves an explicitly selected production blueprint when a placement mod assigns the screen to a separate dismantle group. Freight support is isolated on `freight-0.0.2`. Builds go to `dist/<SemVersion>/`. This is not a claim of pixel-identical visuals or exhaustive production-chain coverage.
+**Release 0.0.2:** adds solid/fluid train freight displays and retains the 0.0.1 blueprint binding hotfix and registry-compatible dependency metadata. Builds go to `dist/<SemVersion>/`; versioned 0.0.1 archives remain preserved. This is not a claim of pixel-identical visuals or exhaustive production-chain coverage.
 
 ## Behavior implemented in source
 
@@ -19,7 +19,7 @@ Chat commands:
 
 | Command | Meaning |
 | --- | --- |
-| `/modscreen ON` / `/modscreen OFF` | Enable/disable automatic displays on modded storage containers |
+| `/modscreen ON` / `/modscreen OFF` | Enable/disable automatic displays on modded storage containers and freight wagons |
 | `/modscreen big` | Toggle large automatic side panels |
 | `/cstime <seconds>` | Sampling interval; default 10, accepted range 0.1–3600 |
 | `/csdist <centimetres>` | Player proximity required for updates; default 10000, accepted range 100–1000000 |
@@ -38,6 +38,13 @@ A separate, manually placed buildable under **Organization → Signs**, costing 
 - Can be included inside a Blueprint Designer template. Instantiated screens use their own new instance's membership rather than an external template reference.
 - An explicitly selected blueprint takes precedence over the screen's own third-party dismantle group. Smart! and Infinite Zoop can create unnamed blueprint proxies for groups of structures; a screen attached to such a group reports only that group's recipe machines, not nearby factories.
 - Sampling uses the existing `/cstime` and `/csdist` settings. Mode changes apply immediately. Multiple ingredient rows scale down to remain within the display.
+
+### Train freight cars
+
+- Vanilla freight wagons receive automatic displays on both long sides, attached to the wagon. Existing saved wagons and newly built wagons are discovered.
+- Solid cargo shows item count/capacity; mixed cargo shows occupied slots. Fluid/gas cargo shows volume/capacity in m³. Empty wagons with unspecified cargo type show empty slots rather than guessing their next cargo.
+- Uses server-authoritative sampling, proximity settings, layout editing and saved class presets. Removing a wagon removes its automatic screen. Standalone Info Screens can also select nearby freight wagons.
+- `/modscreen big` does not add panels over the couplers: freight's primary pair already occupies both long sides. Modded freight classes follow the modded-container toggle.
 
 
 ### Multiplayer ownership
@@ -98,7 +105,7 @@ python Tools/package_mod.py --preflight
 python Tools/package_mod.py
 ```
 
-`--preflight` does not mutate the SDK. Packaging stages only this plugin, builds the Linux editor target, imports the original assets, builds the shipping targets, then invokes Alpakit to cook and package Windows clients and Linux servers. It validates native manifests, binaries and cooked content before copying archives to `dist/<SemVersion>/` (currently `dist/0.0.1/`). Detailed logs go to `build/`. Use `--output` to select a different destination.
+`--preflight` does not mutate the SDK. Packaging stages only this plugin, builds the Linux editor target, imports the original assets, builds the shipping targets, then invokes Alpakit to cook and package Windows clients and Linux servers. It validates native manifests, binaries and cooked content before copying archives to `dist/<SemVersion>/` (currently `dist/0.0.2/`). Detailed logs go to `build/`. Use `--output` to select a different destination.
 
 Do not run another build, cook or integration operation against the same SDK or build Wine prefix concurrently. The workflow refuses its existing locks and unrelated staged plugins; it does not steal ownership.
 
@@ -122,9 +129,9 @@ Sign in through the website's OAuth flow. The uploader needs the **SMR session t
 
 ```sh
 python3 Tools/upload_ficsit.py \
-  --archive dist/0.0.1/InfoScreens.zip \
+  --archive dist/0.0.2/InfoScreens.zip \
   --mod-reference InfoScreens \
-  --changelog "Initial 0.0.1 release" \
+  --changelog "Add solid and fluid train freight displays; retain blueprint multiplayer fixes" \
   --stability release
 ```
 
@@ -169,6 +176,8 @@ The current licensed Windows client is at `~/Satisfactory`; its Steam native-mod
 - Loaded the user's factory save in the isolated Windows single-player runtime with the rebuilt package. The same grouping regression retained 90 copper ingots/min plus 90 water/min inputs and 90 copper sheets/min output, with zero failures. Evidence: `windows-client/infoscreens-blueprint-hotfix-single-player.log`.
 - All nine native `InfoScreens.*` automation cases passed with zero test failures or warnings, including selected-binding preservation and copied-blueprint rebinding. The whole editor still exited 1 due to the documented SDK startup errors. Evidence: `build/blueprint-hotfix-automation/index.json`. All five rebuilt archives passed CRC, version and SML native-manifest validation; no temporary probe or freight module is shipped.
 - Upgrade both client and server. Dismantle and replace affected screens whose incorrect binding was already saved; the original selected blueprint cannot be recovered from that overwritten reference.
+- Rebuilt 0.0.2 with freight support plus both 0.0.1 hotfixes. All ten native automation cases passed with zero test failures/warnings, including freight cargo transitions and blueprint binding preservation; the editor retains the documented startup-error exit code. Host state tests and all 23 uploader tests passed. All five archives passed integrity/version/native-manifest checks and merged-package upload validation.
+- The packaged 0.0.2 single-player freight scenario showed 37 / 6400 iron plates and 123 / 2400 m³ water, retained attachment during translation/rotation, accepted a layout edit, cleared unloaded cargo and removed the display when the wagon was destroyed. A fresh-process reload restored fluid cargo, layout and attachment. Evidence: `windows-client/infoscreens-freight-002-single-player.log` and `windows-client/infoscreens-freight-002-reload.log`. Freight multiplayer acceptance is still being checked; these single-player results are not multiplayer proof.
 
 Evidence includes `build/assets-fixed.log`, `build/automation.log`, `build/automation/index.json`, `build/host/Testing/Temporary/LastTest.log`, and baseline runtime logs/screenshots under `~/satisfactory-modding/info-screens-workspace/{linux-server,windows-client,asset-authoring}`.
 

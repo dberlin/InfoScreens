@@ -28,7 +28,7 @@ private:
     void HandleBlueprintLayoutChanged();
     UPROPERTY(SaveGame, Replicated) TObjectPtr<AFGBlueprintProxy> TargetBlueprintProxy;
     UPROPERTY(Transient) TObjectPtr<AFGBlueprintProxy> SerializationTarget;
-    UPROPERTY(Transient) TObjectPtr<AFGBuildable> SerializationSource;
+    UPROPERTY(Transient) TObjectPtr<AActor> SerializationSource;
     UPROPERTY(Transient) FInfoScreenSnapshot SamplingSnapshot;
     double LastSampleTime = -1.0;
     bool bLastOutputs = false;

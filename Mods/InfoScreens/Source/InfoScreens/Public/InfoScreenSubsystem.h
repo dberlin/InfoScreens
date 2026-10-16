@@ -7,13 +7,12 @@
 #include "InfoScreenSubsystem.generated.h"
 
 class AInfoScreen;
-class AFGBuildable;
 
 USTRUCT()
 struct FInfoScreenSavedLayout
 {
     GENERATED_BODY()
-    UPROPERTY(SaveGame) TObjectPtr<AFGBuildable> Source;
+    UPROPERTY(SaveGame) TObjectPtr<AActor> Source;
     UPROPERTY(SaveGame) FInfoScreenLayout Layout;
 };
 
@@ -58,15 +57,15 @@ private:
     };
     struct FScreenState
     {
-        TWeakObjectPtr<AFGBuildable> LastSource;
+        TWeakObjectPtr<AActor> LastSource;
         uint64 Revision = 0;
         double NextAssociationAttempt = 0.0;
     };
-    TSet<TWeakObjectPtr<AFGBuildable>> Sources;
-    TSet<TWeakObjectPtr<AFGBuildable>> PendingSources;
+    TSet<TWeakObjectPtr<AActor>> Sources;
+    TSet<TWeakObjectPtr<AActor>> PendingSources;
     TMap<TWeakObjectPtr<AInfoScreen>, FScreenState> Screens;
-    TMap<TWeakObjectPtr<AFGBuildable>, TWeakObjectPtr<AInfoScreen>> AutomaticScreens;
-    TMap<TWeakObjectPtr<AFGBuildable>, FCachedSnapshot> Snapshots;
+    TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<AInfoScreen>> AutomaticScreens;
+    TMap<TWeakObjectPtr<AActor>, FCachedSnapshot> Snapshots;
     FDelegateHandle SpawnHandle;
     FTimerHandle RefreshTimer;
     bool bStarted = false;
@@ -74,9 +73,9 @@ private:
     void ObserveActor(AActor* Actor);
     void RefreshScreens();
     void ResetTimer();
-    void EnsureAutomaticScreen(AFGBuildable* Source);
-    bool IsAutomaticSource(const AFGBuildable* Source) const;
+    void EnsureAutomaticScreen(AActor* Source);
+    bool IsAutomaticSource(const AActor* Source) const;
     bool IsNearPlayer(const AInfoScreen* Screen) const;
-    AFGBuildable* FindSource(const AInfoScreen* Screen) const;
-    FInfoScreenLayout FindLayout(AFGBuildable* Source) const;
+    AActor* FindSource(const AInfoScreen* Screen) const;
+    FInfoScreenLayout FindLayout(AActor* Source) const;
 };

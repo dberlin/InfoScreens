@@ -33,22 +33,22 @@ public:
     virtual bool IsUseable_Implementation() const override;
     virtual FText GetLookAtDecription_Implementation(AFGCharacterPlayer* Character, const FUseState& State) const override;
 
-    AFGBuildable* GetSource() const { return Source; }
+    AActor* GetSource() const { return Source; }
     FInfoScreenLayoutChanged OnLayoutChanged;
     bool IsAutomatic() const { return bAutomatic; }
     const FInfoScreenLayout& GetLayout() const { return Layout; }
     const FInfoScreenSnapshot& GetSnapshot() const { return Snapshot; }
     int64 GetLayoutRevision() const { return LayoutRevision; }
     bool IsWithinDisplayDistance(const FVector& Position, double DistanceSquared) const;
-    void InitializeAutomatic(AFGBuildable* Target, const FInfoScreenLayout& InitialLayout, bool LargeSides);
-    void SetSource(AFGBuildable* Target);
+    void InitializeAutomatic(AActor* Target, const FInfoScreenLayout& InitialLayout, bool LargeSides);
+    void SetSource(AActor* Target);
     void ApplyLayout(const FInfoScreenLayout& NewLayout);
     void SetLargeSides(bool Enabled);
     void UpdateSnapshot(const FInfoScreenSnapshot& NewSnapshot);
-    static FInfoScreenLayout DefaultContainerLayout(const AFGBuildable* Target);
+    static FInfoScreenLayout DefaultContainerLayout(const AActor* Target);
 
 protected:
-    UPROPERTY(SaveGame, ReplicatedUsing=OnRep_Presentation) TObjectPtr<AFGBuildable> Source;
+    UPROPERTY(SaveGame, ReplicatedUsing=OnRep_Presentation) TObjectPtr<AActor> Source;
     UPROPERTY(ReplicatedUsing=OnRep_Presentation) bool bAutomatic = false;
     UPROPERTY(SaveGame, ReplicatedUsing=OnRep_Layout) FInfoScreenLayout Layout;
     UPROPERTY(SaveGame, ReplicatedUsing=OnRep_Layout) int64 LayoutRevision = 0;

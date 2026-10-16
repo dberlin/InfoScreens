@@ -3,6 +3,7 @@
 #include "InfoScreen.h"
 #include "InfoBlueprintScreen.h"
 #include "Buildables/FGBuildableStorage.h"
+#include "FGFreightWagon.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -48,6 +49,8 @@ void AInfoScreenSubsystem::BeginPlay()
         FOnActorSpawned::FDelegate::CreateUObject(this, &AInfoScreenSubsystem::ObserveActor));
     for (TActorIterator<AFGBuildable> It(GetWorld()); It; ++It)
         ObserveActor(*It);
+    for (TActorIterator<AFGFreightWagon> It(GetWorld()); It; ++It)
+        ObserveActor(*It);
     ResetTimer();
 }
 
@@ -71,8 +74,8 @@ void AInfoScreenSubsystem::ObserveActor(AActor* Actor)
 {
     if (AInfoScreen* Screen = Cast<AInfoScreen>(Actor))
         RegisterScreen(Screen);
-    else if (AFGBuildable* Source = Cast<AFGBuildable>(Actor); InfoScreenReader::Supports(Source))
-        PendingSources.Add(Source);
+    else if (InfoScreenReader::Supports(Actor))
+        PendingSources.Add(Actor);
 }
 
 void AInfoScreenSubsystem::RegisterScreen(AInfoScreen* Screen)
@@ -91,16 +94,17 @@ void AInfoScreenSubsystem::UnregisterScreen(AInfoScreen* Screen)
         AutomaticScreens.Remove(Screen->GetSource());
 }
 
-bool AInfoScreenSubsystem::IsAutomaticSource(const AFGBuildable* Source) const
+bool AInfoScreenSubsystem::IsAutomaticSource(const AActor* Source) const
 {
-    if (!IsValid(Source) || !Source->IsA<AFGBuildableStorage>())
+    if (!InfoScreenReader::Supports(Source) ||
+        (!Source->IsA<AFGBuildableStorage>() && !Source->IsA<AFGFreightWagon>()))
         return false;
     const FString ClassPath = Source->GetClass()->GetPathName();
     return bModdedContainers || ClassPath.StartsWith(TEXT("/Game/")) ||
         ClassPath.StartsWith(TEXT("/Script/FactoryGame."));
 }
 
-FInfoScreenLayout AInfoScreenSubsystem::FindLayout(AFGBuildable* Source) const
+FInfoScreenLayout AInfoScreenSubsystem::FindLayout(AActor* Source) const
 {
     for (const FInfoScreenSavedLayout& Saved : SavedLayouts)
         if (Saved.Source == Source)
@@ -111,7 +115,7 @@ FInfoScreenLayout AInfoScreenSubsystem::FindLayout(AFGBuildable* Source) const
     return AInfoScreen::DefaultContainerLayout(Source);
 }
 
-void AInfoScreenSubsystem::EnsureAutomaticScreen(AFGBuildable* Source)
+void AInfoScreenSubsystem::EnsureAutomaticScreen(AActor* Source)
 {
     if (!IsAutomaticSource(Source))
         return;
@@ -140,16 +144,16 @@ bool AInfoScreenSubsystem::IsNearPlayer(const AInfoScreen* Screen) const
     return false;
 }
 
-AFGBuildable* AInfoScreenSubsystem::FindSource(const AInfoScreen* Screen) const
+AActor* AInfoScreenSubsystem::FindSource(const AInfoScreen* Screen) const
 {
-    AFGBuildable* Best = nullptr;
+    AActor* Best = nullptr;
     double BestDistance = DBL_MAX;
     double BestCenterDistance = DBL_MAX;
     const FVector Position = Screen->GetActorLocation();
-    for (const TWeakObjectPtr<AFGBuildable>& Candidate : Sources)
+    for (const TWeakObjectPtr<AActor>& Candidate : Sources)
     {
-        AFGBuildable* Source = Candidate.Get();
-        if (!Source || !Source->HasActorBegunPlay())
+        AActor* Source = Candidate.Get();
+        if (!InfoScreenReader::Supports(Source) || !Source->HasActorBegunPlay())
             continue;
         FVector Center, Extent;
         Source->GetActorBounds(true, Center, Extent);
@@ -172,10 +176,12 @@ AFGBuildable* AInfoScreenSubsystem::FindSource(const AInfoScreen* Screen) const
 
 void AInfoScreenSubsystem::RefreshScreens()
 {
+    if (!HasAuthority())
+        return;
     for (auto It = PendingSources.CreateIterator(); It; ++It)
     {
-        AFGBuildable* Source = It->Get();
-        if (!Source)
+        AActor* Source = It->Get();
+        if (!InfoScreenReader::Supports(Source))
         {
             It.RemoveCurrent();
             continue;
@@ -187,10 +193,10 @@ void AInfoScreenSubsystem::RefreshScreens()
         It.RemoveCurrent();
     }
     for (auto It = Sources.CreateIterator(); It; ++It)
-        if (!It->IsValid())
+        if (!InfoScreenReader::Supports(It->Get()))
             It.RemoveCurrent();
     for (auto It = Snapshots.CreateIterator(); It; ++It)
-        if (!It.Key().IsValid())
+        if (!InfoScreenReader::Supports(It.Key().Get()))
             It.RemoveCurrent();
 
     const double Now = GetWorld()->GetTimeSeconds();
@@ -211,8 +217,8 @@ void AInfoScreenSubsystem::RefreshScreens()
                 BlueprintScreen->RefreshBlueprint(UpdateInterval);
             continue;
         }
-        AFGBuildable* Source = Screen->GetSource();
-        if (!IsValid(Source))
+        AActor* Source = Screen->GetSource();
+        if (!InfoScreenReader::Supports(Source))
         {
             if (Screen->IsAutomatic())
             {
@@ -228,7 +234,7 @@ void AInfoScreenSubsystem::RefreshScreens()
                 {
                     FInfoScreenSnapshot Unlinked;
                     Unlinked.Title = NSLOCTEXT("InfoScreens", "UnlinkedTitle", "Info Screen");
-                    Unlinked.Status = NSLOCTEXT("InfoScreens", "UnlinkedStatus", "No supported building within 10 m");
+                    Unlinked.Status = NSLOCTEXT("InfoScreens", "UnlinkedStatus", "No supported source within 10 m");
                     Screen->UpdateSnapshot(Unlinked);
                 }
             }

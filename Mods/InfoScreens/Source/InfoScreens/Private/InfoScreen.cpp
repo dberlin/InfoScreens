@@ -6,6 +6,7 @@
 #include "Components/WidgetComponent.h"
 #include "Engine/StaticMesh.h"
 #include "FGCharacterPlayer.h"
+#include "FGFreightWagon.h"
 #include "FGHUD.h"
 #include "FGUseableInterface.h"
 #include "GameFramework/PlayerController.h"
@@ -28,7 +29,7 @@ namespace
     constexpr ECollisionChannel InteractChannel = ECC_GameTraceChannel13;
     constexpr ECollisionChannel BuildGunChannel = ECC_GameTraceChannel5;
 
-    FBox SourceBounds(const AFGBuildable* Source)
+    FBox SourceBounds(const AActor* Source)
     {
         if (IsValid(Source))
         {
@@ -51,7 +52,7 @@ AInfoScreen::AInfoScreen()
     NetUpdateFrequency = 2.0f;
     MinNetUpdateFrequency = 0.1f;
     mDisplayName = LOCTEXT("ScreenName", "Info Screen");
-    mDescription = LOCTEXT("ScreenDescription", "Displays live information from a nearby building. Interact to adjust its layout.");
+    mDescription = LOCTEXT("ScreenDescription", "Displays live information from a nearby supported building or freight car. Interact to adjust its layout.");
     mHologramClass = AInfoScreenHologram::StaticClass();
 
     if (!GetRootComponent())
@@ -177,7 +178,7 @@ bool AInfoScreen::IsWithinDisplayDistance(const FVector& Position, double Distan
     return false;
 }
 
-void AInfoScreen::InitializeAutomatic(AFGBuildable* Target, const FInfoScreenLayout& InitialLayout, bool LargeSides)
+void AInfoScreen::InitializeAutomatic(AActor* Target, const FInfoScreenLayout& InitialLayout, bool LargeSides)
 {
     if (!HasAuthority() || !IsValid(Target))
     {
@@ -193,7 +194,7 @@ void AInfoScreen::InitializeAutomatic(AFGBuildable* Target, const FInfoScreenLay
     ForceNetUpdate();
 }
 
-void AInfoScreen::SetSource(AFGBuildable* Target)
+void AInfoScreen::SetSource(AActor* Target)
 {
     if (!HasAuthority() || Source == Target)
     {
@@ -241,10 +242,25 @@ void AInfoScreen::UpdateSnapshot(const FInfoScreenSnapshot& NewSnapshot)
     }
 }
 
-FInfoScreenLayout AInfoScreen::DefaultContainerLayout(const AFGBuildable* Target)
+FInfoScreenLayout AInfoScreen::DefaultContainerLayout(const AActor* Target)
 {
     const FBox Bounds = SourceBounds(Target);
     const FVector Center = Bounds.GetCenter();
+    if (IsValid(Target) && Target->IsA<AFGFreightWagon>())
+    {
+        // Wagons run along X. Center panels on the upper body, above wheels and away
+        // from both couplers. Keep this layout independent of changing cargo visibility.
+        const float Scale = FMath::Clamp(static_cast<float>(FMath::Min(
+            Bounds.GetSize().X / (PanelWidth + 16.0f),
+            Bounds.GetSize().Z * 0.6 / (PanelHeight + 16.0f))), 0.35f, 1.5f);
+        const double Height = Bounds.Min.Z + Bounds.GetSize().Z * 0.65;
+        FInfoScreenLayout Result;
+        Result.Front = FTransform(FRotator(0.0f, 90.0f, 0.0f),
+            FVector(Center.X, Bounds.Max.Y + PanelOffset, Height), FVector(Scale));
+        Result.Back = FTransform(FRotator(0.0f, -90.0f, 0.0f),
+            FVector(Center.X, Bounds.Min.Y - PanelOffset, Height), FVector(Scale));
+        return Result;
+    }
     // +X is the front normal of both our frame mesh and UWidgetComponent.
     const float Scale = FMath::Clamp(static_cast<float>(Bounds.GetSize().Y) / (PanelWidth + 16.0f), 0.35f, 1.0f);
     FInfoScreenLayout Result;
@@ -269,8 +285,11 @@ void AInfoScreen::OnRep_Layout()
 void AInfoScreen::RefreshPresentation()
 {
     FTransform Transforms[PanelCount] = {Layout.Front, Layout.Back, FTransform::Identity, FTransform::Identity};
-    bool Visible[PanelCount] = {true, bAutomatic && Layout.bBackVisible, bAutomatic && bLargeSides, bAutomatic && bLargeSides};
-    if (bAutomatic)
+    const bool Freight = IsValid(Source) && Source->IsA<AFGFreightWagon>();
+    // Freight's primary pair already occupies its long sides; never add coupler/end panels.
+    bool Visible[PanelCount] = {true, bAutomatic && Layout.bBackVisible,
+        bAutomatic && bLargeSides && !Freight, bAutomatic && bLargeSides && !Freight};
+    if (bAutomatic && bLargeSides && !Freight)
     {
         const FBox Bounds = SourceBounds(Source);
         const FVector Center = Bounds.GetCenter();
@@ -279,12 +298,12 @@ void AInfoScreen::RefreshPresentation()
             FVector(Center.X, Bounds.Max.Y + PanelOffset, Center.Z), FVector(SideScale));
         Transforms[3] = FTransform(FRotator(0.0f, -90.0f, 0.0f),
             FVector(Center.X, Bounds.Min.Y - PanelOffset, Center.Z), FVector(SideScale));
-        // Source references can resolve after the initial actor replication bunch.
-        if (IsValid(Source) && GetAttachParentActor() != Source)
-        {
-            AttachToActor(Source, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-            SetActorRelativeTransform(FTransform::Identity);
-        }
+    }
+    // Source references can resolve after the initial actor replication bunch.
+    if (bAutomatic && IsValid(Source) && GetAttachParentActor() != Source)
+    {
+        AttachToActor(Source, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+        SetActorRelativeTransform(FTransform::Identity);
     }
     for (int32 Index = 0; Index < PanelCount; ++Index)
     {
