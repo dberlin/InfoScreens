@@ -2,8 +2,12 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Buildables/FGBuildableManufacturer.h"
+#include "Engine/World.h"
+#include "FGBlueprintProxy.h"
+#include "InfoBlueprintScreen.h"
 #include "FGRecipe.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "Resources/FGResourceDescriptor.h"
 #include "UObject/UnrealType.h"
 #include <initializer_list>
@@ -144,6 +148,48 @@ bool FInfoBlueprintEmptyTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Inputs are independent of output boost"), AccumulateRecipe(Recipe, false, 1.0, 1.0, 0.0, Snapshot));
     TestEqual(TEXT("Invalid item descriptors are skipped"), Snapshot.Rows.Num(), 1);
     TestEqual(TEXT("Valid ingredients retain their configured rate"), Snapshot.Rows[0].PerMinute, 10.0);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInfoBlueprintBindingTest, "InfoScreens.Blueprint.SelectedBindingSurvivesGrouping",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FInfoBlueprintBindingTest::RunTest(const FString& Parameters)
+{
+    const UWorld::InitializationValues Settings = UWorld::InitializationValues()
+        .AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false).CreateAISystem(false);
+    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true,
+        ERHIFeatureLevel::Num, &Settings);
+    if (!TestNotNull(TEXT("Isolated binding world"), World)) return false;
+    ON_SCOPE_EXIT { World->DestroyWorld(false); };
+    AInfoBlueprintScreen* Screen = World->SpawnActor<AInfoBlueprintScreen>();
+    AFGBlueprintProxy* Selected = World->SpawnActor<AFGBlueprintProxy>();
+    AFGBlueprintProxy* DismantleGroup = World->SpawnActor<AFGBlueprintProxy>();
+    if (!TestNotNull(TEXT("Screen"), Screen) || !TestNotNull(TEXT("Selected blueprint"), Selected)
+        || !TestNotNull(TEXT("Dismantle group"), DismantleGroup)) return false;
+
+    // Restore the saved selection independently of actor membership, as save loading does.
+    FObjectProperty* Target = FindFProperty<FObjectProperty>(AInfoBlueprintScreen::StaticClass(), TEXT("TargetBlueprintProxy"));
+    if (!TestNotNull(TEXT("Saved blueprint selection"), Target)) return false;
+    Target->SetObjectPropertyValue_InContainer(Screen, Selected);
+    Screen->SetBlueprintProxy(DismantleGroup);
+    Screen->RefreshBlueprint(0.0f);
+    TestTrue(TEXT("Grouping cannot replace an explicit production blueprint"),
+        Screen->GetTargetBlueprintProxy() == Selected);
+    FInfoScreenLayout Layout = Screen->GetLayout();
+    Layout.bBlueprintOutputs = true;
+    Screen->ApplyLayout(Layout);
+    Screen->RefreshBlueprint(0.0f);
+    TestTrue(TEXT("Output mode retains the same selected blueprint"),
+        Screen->GetTargetBlueprintProxy() == Selected);
+
+    AFGBlueprintProxy* CopiedBlueprint = World->SpawnActor<AFGBlueprintProxy>();
+    if (!TestNotNull(TEXT("New blueprint instance"), CopiedBlueprint)) return false;
+    Screen->PostSerializedFromBlueprint(false);
+    Screen->SetBlueprintProxy(CopiedBlueprint);
+    Screen->RefreshBlueprint(0.0f);
+    TestTrue(TEXT("Blueprint deserialization binds to the new instance, not the old selection"),
+        Screen->GetTargetBlueprintProxy() == CopiedBlueprint);
     return true;
 }
 #endif

@@ -74,9 +74,10 @@ void AInfoBlueprintScreen::RefreshBlueprint(float UpdateInterval)
     if (!HasAuthority() || !GetWorld())
         return;
 
-    // Membership assigned by blueprint construction supersedes any serialized designer/old-instance reference.
+    // A selected production blueprint takes precedence over third-party dismantle groups.
+    // Blueprint deserialization clears the old target before assigning the copy's own membership.
     AFGBlueprintProxy* OwnProxy = GetBlueprintProxy();
-    const bool TargetChanged = IsValid(OwnProxy) && TargetBlueprintProxy != OwnProxy;
+    const bool TargetChanged = !IsValid(TargetBlueprintProxy) && IsValid(OwnProxy);
     if (TargetChanged)
     {
         TargetBlueprintProxy = OwnProxy;
