@@ -14,8 +14,6 @@ namespace InfoScreenReader::Detail
         double Amount, int32 Occupied, int32 Slots, double Capacity, bool Mixed);
     void FluidSummary(FInfoScreenSnapshot& Snapshot, const FFluidBox& Box,
         TSubclassOf<UFGItemDescriptor> Item);
-    void FreightFluidSummary(FInfoScreenSnapshot& Snapshot, TSubclassOf<UFGItemDescriptor> Item,
-        double Amount, double Capacity);
     void BatterySummary(FInfoScreenSnapshot& Snapshot, double Stored, double Capacity,
         double InputMW, double OutputMW);
     double DisplayAmount(double Amount, EResourceForm Form);
@@ -83,41 +81,6 @@ bool FInfoScreenUnitsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Drain cubic meters per second become per minute"), Snapshot.Rows[2].PerMinute, 30.0);
     TestFalse(TEXT("Inflow is a rate, not a fabricated zero inventory"), Snapshot.Rows[1].bHasAmount);
     TestFalse(TEXT("Outflow is a rate, not a fabricated zero inventory"), Snapshot.Rows[2].bHasAmount);
-    return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInfoScreenFreightFluidTest, "InfoScreens.Reader.FreightCargoTransitions",
-    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-
-bool FInfoScreenFreightFluidTest::RunTest(const FString& Parameters)
-{
-    using namespace InfoScreenReader::Detail;
-    FInfoScreenSnapshot Snapshot;
-    // Inventory quantities are liters, unlike a pipe reservoir's already-m³ FFluidBox.
-    FreightFluidSummary(Snapshot, UFGItemDescriptor::StaticClass(), 800000.0, 1600000.0);
-    TestEqual(TEXT("Freight liquid quantity converts to cubic meters"), Snapshot.Rows[0].Amount, 800.0);
-    TestEqual(TEXT("Freight capacity converts to cubic meters"), Snapshot.Rows[0].Capacity, 1600.0);
-    TestEqual(TEXT("Freight fluid is not displayed in slots"), Snapshot.Rows[0].Unit, EInfoScreenUnit::CubicMeters);
-    TestEqual(TEXT("Half-full freight uses quantity, not occupied slots"), Snapshot.FillRatio, 0.5f);
-    TestEqual(TEXT("Freight has no fabricated pipe flow rates"), Snapshot.Rows.Num(), 1);
-
-    ResetSnapshot(Snapshot);
-    FreightFluidSummary(Snapshot, nullptr, 0.0, 1600000.0);
-    TestEqual(TEXT("Empty fluid freight retains actual volume capacity"), Snapshot.Rows[0].Capacity, 1600.0);
-    TestEqual(TEXT("Empty fluid freight has zero volume"), Snapshot.Rows[0].Amount, 0.0);
-    TestTrue(TEXT("Empty fluid freight clears cargo icon"), Snapshot.Icon == nullptr);
-    TestEqual(TEXT("Empty fluid freight is not full"), Snapshot.FillRatio, 0.0f);
-
-    ResetSnapshot(Snapshot);
-    StorageSummary(Snapshot, UFGItemDescriptor::StaticClass(), 150.0, 2, 32, 3200.0, false);
-    TestEqual(TEXT("Changing to solid cargo restores item counts"), Snapshot.Rows[0].Amount, 150.0);
-    TestEqual(TEXT("Changing to solid cargo restores item capacity"), Snapshot.Rows[0].Capacity, 3200.0);
-    TestEqual(TEXT("Changing to solid cargo restores item units"), Snapshot.Rows[0].Unit, EInfoScreenUnit::Items);
-
-    ResetSnapshot(Snapshot);
-    FreightFluidSummary(Snapshot, nullptr, 0.0, 0.0);
-    TestFalse(TEXT("Uninitialized volume capacity has no fullness"), Snapshot.bHasFill);
-    TestTrue(TEXT("Uninitialized volume capacity remains finite"), FMath::IsFinite(Snapshot.FillRatio));
     return true;
 }
 

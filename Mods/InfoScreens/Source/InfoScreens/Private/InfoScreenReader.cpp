@@ -10,7 +10,6 @@
 #include "Buildables/FGBuildableResourceSink.h"
 #include "Buildables/FGBuildableStorage.h"
 #include "FGFluidIntegrantInterface.h"
-#include "FGFreightWagon.h"
 #include "FGInventoryComponent.h"
 #include "FGPowerInfoComponent.h"
 #include "FGRecipe.h"
@@ -116,20 +115,6 @@ namespace InfoScreenReader::Detail
         }
     }
 
-    void FreightFluidSummary(FInfoScreenSnapshot& Snapshot, TSubclassOf<UFGItemDescriptor> Item,
-        double Amount, double Capacity)
-    {
-        Snapshot.Kind = EInfoScreenKind::FluidBuffer;
-        Snapshot.Icon = Item;
-        Snapshot.Status = Amount > 0.0 ? LOCTEXT("FluidStored", "Fluid stored") : LOCTEXT("Empty", "Empty");
-        FInfoScreenRow& Content = AddRow(Snapshot,
-            Item ? UFGItemDescriptor::GetItemName(Item) : LOCTEXT("FluidContent", "Fluid content"),
-            DisplayAmount(Amount, EResourceForm::RF_LIQUID), EInfoScreenUnit::CubicMeters, Item);
-        Content.Capacity = DisplayAmount(Capacity, EResourceForm::RF_LIQUID);
-        Content.bHasCapacity = true;
-        SetFill(Snapshot, Amount, Capacity);
-    }
-
     void FluidSummary(FInfoScreenSnapshot& Snapshot, const FFluidBox& Box,
         TSubclassOf<UFGItemDescriptor> Item)
     {
@@ -197,10 +182,10 @@ namespace InfoScreenReader::Detail
         return Capacity;
     }
 
-    static void ReadInventory(const UFGInventoryComponent* Inventory, FInfoScreenSnapshot& Snapshot,
-        const AFGFreightWagon* Freight = nullptr)
+    static void ReadStorage(AFGBuildableStorage* Source, FInfoScreenSnapshot& Snapshot)
     {
         Snapshot.Kind = EInfoScreenKind::Storage;
+        const UFGInventoryComponent* Inventory = Source->GetStorageInventory();
         if (!InventoryReady(Inventory))
         {
             Snapshot.Status = LOCTEXT("InventoryUnavailable", "Inventory unavailable");
@@ -232,21 +217,7 @@ namespace InfoScreenReader::Detail
             Amount += Stack.NumItems;
         }
         const double Capacity = Item && !Mixed ? CapacityForItem(Inventory, Item) : 0.0;
-        const EResourceForm Form = Freight && Item ? UFGItemDescriptor::GetForm(Item) : EResourceForm::RF_SOLID;
-        const bool FluidCargo = Form == EResourceForm::RF_LIQUID || Form == EResourceForm::RF_GAS ||
-            (!Item && Freight && Freight->GetFreightCargoType() == EFreightCargoType::FCT_Liquid);
-        if (Freight && FluidCargo && !Mixed)
-        {
-            // A loaded wagon's slot overrides are the authoritative item capacity. When empty
-            // but still typed liquid, no descriptor exists; use its configured scaled liters/slot.
-            const double FluidCapacity = Item ? Capacity :
-                static_cast<double>(Slots) * FMath::Max(Freight->GetScaledFluidStackSize(), 0);
-            FreightFluidSummary(Snapshot, Item, Amount, FluidCapacity);
-        }
-        else
-        {
-            StorageSummary(Snapshot, Item, Amount, Occupied, Slots, Capacity, Mixed);
-        }
+        StorageSummary(Snapshot, Item, Amount, Occupied, Slots, Capacity, Mixed);
     }
 
     static void FactoryTelemetry(AFGBuildableFactory* Factory, FInfoScreenSnapshot& Snapshot)
@@ -465,16 +436,16 @@ namespace InfoScreenReader::Detail
     }
 }
 
-bool InfoScreenReader::Supports(const AActor* Source)
+bool InfoScreenReader::Supports(const AFGBuildable* Source)
 {
     return IsValid(Source) && !Source->IsActorBeingDestroyed()
-        && (Source->IsA<AFGFreightWagon>() || Source->IsA<AFGBuildableStorage>() || Source->IsA<AFGBuildablePipeReservoir>()
+        && (Source->IsA<AFGBuildableStorage>() || Source->IsA<AFGBuildablePipeReservoir>()
             || Source->IsA<AFGBuildableManufacturer>() || Source->IsA<AFGBuildableResourceExtractor>()
             || Source->IsA<AFGBuildableGenerator>() || Source->IsA<AFGBuildablePowerStorage>()
             || Source->IsA<AFGBuildableResourceSink>());
 }
 
-bool InfoScreenReader::Read(AActor* Source, FInfoScreenSnapshot& OutSnapshot)
+bool InfoScreenReader::Read(AFGBuildable* Source, FInfoScreenSnapshot& OutSnapshot)
 {
     using namespace Detail;
     ResetSnapshot(OutSnapshot);
@@ -485,17 +456,13 @@ bool InfoScreenReader::Read(AActor* Source, FInfoScreenSnapshot& OutSnapshot)
         OutSnapshot.Status = LOCTEXT("SourceUnavailable", "Source unavailable");
         return false;
     }
-    const AFGBuildable* Building = Cast<AFGBuildable>(Source);
-    OutSnapshot.Title = Building ? Building->mDisplayName : LOCTEXT("FreightWagon", "Freight Car");
+    OutSnapshot.Title = Source->mDisplayName;
     if (!Source->HasActorBegunPlay())
     {
         OutSnapshot.Status = LOCTEXT("SourceNotReady", "Source not initialized");
         return true;
     }
-    if (AFGFreightWagon* Freight = Cast<AFGFreightWagon>(Source))
-        ReadInventory(Freight->GetFreightInventory(), OutSnapshot, Freight);
-    else if (AFGBuildableStorage* Storage = Cast<AFGBuildableStorage>(Source))
-        ReadInventory(Storage->GetStorageInventory(), OutSnapshot);
+    if (AFGBuildableStorage* Storage = Cast<AFGBuildableStorage>(Source)) ReadStorage(Storage, OutSnapshot);
     else if (AFGBuildablePipeReservoir* Reservoir = Cast<AFGBuildablePipeReservoir>(Source))
     {
         OutSnapshot.Kind = EInfoScreenKind::FluidBuffer;

@@ -70,13 +70,13 @@ struct INFOSCREENS_API FInfoScreenPreset
 {
     GENERATED_BODY()
 
-    UPROPERTY(SaveGame) TSubclassOf<class AActor> SourceClass;
+    UPROPERTY(SaveGame) TSubclassOf<class AFGBuildable> SourceClass;
     UPROPERTY(SaveGame) FInfoScreenLayout Layout;
 };
 
 /** Server-only adapters. No client inventory access, widgets, or render resources. */
 namespace InfoScreenReader
 {
-    INFOSCREENS_API bool Supports(const class AActor* Source);
-    INFOSCREENS_API bool Read(class AActor* Source, FInfoScreenSnapshot& OutSnapshot);
+    INFOSCREENS_API bool Supports(const class AFGBuildable* Source);
+    INFOSCREENS_API bool Read(class AFGBuildable* Source, FInfoScreenSnapshot& OutSnapshot);
 }
