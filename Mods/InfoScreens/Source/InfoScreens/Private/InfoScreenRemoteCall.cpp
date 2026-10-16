@@ -48,7 +48,7 @@ void UInfoScreenRemoteCall::ServerApplyLayout_Implementation(AInfoScreen* Screen
     AInfoScreenSubsystem* Subsystem = AInfoScreenSubsystem::Get(GetWorld());
     const bool Applied = CanEdit(Screen) && Subsystem && Subsystem->ApplyLayout(Screen, Layout);
     Reply(Screen, RequestId, Applied, Applied ? NSLOCTEXT("InfoScreens", "LayoutApplied", "Layout saved for everyone in this session.") :
-        NSLOCTEXT("InfoScreens", "LayoutRejected", "Layout rejected. Stay near the screen; use finite positions within 100 m and scales from 0.01 to 20."));
+        NSLOCTEXT("InfoScreens", "LayoutRejected", "Layout rejected. Stay near the screen; use finite positions within 100 m, scales from 0.01 to 20, and heading/items font sizes of 0 (Auto-fit) or 1 to 256."));
 }
 
 void UInfoScreenRemoteCall::ServerSavePreset_Implementation(AInfoScreen* Screen, FInfoScreenLayout Layout, uint64 RequestId)
@@ -56,7 +56,7 @@ void UInfoScreenRemoteCall::ServerSavePreset_Implementation(AInfoScreen* Screen,
     AInfoScreenSubsystem* Subsystem = AInfoScreenSubsystem::Get(GetWorld());
     const bool Applied = CanEdit(Screen) && Subsystem && Subsystem->SavePreset(Screen, Layout);
     Reply(Screen, RequestId, Applied, Applied ? NSLOCTEXT("InfoScreens", "PresetSaved", "Preset saved and applied to every container of this type.") :
-        NSLOCTEXT("InfoScreens", "PresetRejected", "Could not save preset. Use a nearby automatic container screen and a valid layout."));
+        NSLOCTEXT("InfoScreens", "PresetRejected", "Could not save preset. Use a nearby automatic container screen, finite positions within 100 m, scales from 0.01 to 20, and heading/items font sizes of 0 (Auto-fit) or 1 to 256."));
 }
 
 void UInfoScreenRemoteCall::ServerLoadPreset_Implementation(AInfoScreen* Screen, uint64 RequestId)

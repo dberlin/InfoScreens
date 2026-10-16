@@ -1,10 +1,10 @@
 # InfoScreens
 
-Source version **0.0.2** · mod reference **`InfoScreens`** · [source repository](https://github.com/dberlin/InfoScreens)
+Source version **0.0.3** · mod reference **`InfoScreens`** · [source repository](https://github.com/dberlin/InfoScreens)
 
 A native Satisfactory mod implementing ContainerScreen-style automatic container displays and standalone machine information screens, with server-authoritative telemetry for multiplayer.
 
-**Release 0.0.2:** adds solid/fluid train freight displays and retains the 0.0.1 blueprint binding hotfix and registry-compatible dependency metadata. Builds go to `dist/<SemVersion>/`; versioned 0.0.1 archives remain preserved. This is not a claim of pixel-identical visuals or exhaustive production-chain coverage.
+**Release 0.0.3:** adds independent heading and item-list font controls, defaults both to measured Auto-fit, and removes repeated “(configured rate)” suffixes from machine item labels. Existing saved screens and blueprints default to Auto-fit without conversion. Freight support and the blueprint multiplayer fixes remain included. Builds go to `dist/<SemVersion>/`; versioned 0.0.1 and 0.0.2 archives remain preserved.
 
 ## Behavior implemented in source
 
@@ -12,8 +12,9 @@ A native Satisfactory mod implementing ContainerScreen-style automatic container
 - Buildable **Info Screen** and **Big Info Screen**, unlocked automatically under Organization / Signs. Normal screens cost two reinforced iron plates; big screens are free, matching the inspected reference assets.
 - Storage quantities/capacity, mixed-inventory slot usage, fluid volume and flows, manufacturing ingredients/products/rates, extractor output, generator fuel/power/supplemental resources/nuclear waste, battery charge and time estimates, and global AWESOME Sink progress/coupons.
 - Item icons, progress bars, and numeric readouts. Dedicated servers create no UMG widgets or render targets.
-- E opens a layout editor: front/back position, rotation and scale, back-panel visibility, Apply, Save Preset, Load Preset, and Close. Presets apply to automatic displays of the same container class. Y/H, U/J and T/G adjust the selected panel's draft position by one centimetre; Apply submits it. Escape closes through the game's interaction UI.
+- E opens a layout editor: front/back position, rotation and scale, back-panel visibility, independent heading/item-list font controls, Apply, Save Preset, Load Preset, and Close. Presets apply to automatic displays of the same container class. Y/H, U/J and T/G adjust the selected panel's draft position by one centimetre; Apply submits it. Escape closes through the game's interaction UI.
 - Layouts, presets and configuration persist in saves. Automatic displays are recreated from their sources and cannot be independently dismantled or refunded. Standalone screens use normal building/dismantling behavior.
+- Heading and item-list fonts each default to **Auto-fit**, which measures actual text and chooses the largest whole-number size that fits the section in both dimensions. Heading and item widths are fitted independently; the item list receives the height remaining after the heading and compact footer. Manual values are 1–256 in the sign's 1024×768 render-target units and can intentionally clip when oversized. Font choices persist in layouts/presets and replicate through the server; use the same mod version on clients and server.
 
 Chat commands:
 
@@ -105,7 +106,7 @@ python Tools/package_mod.py --preflight
 python Tools/package_mod.py
 ```
 
-`--preflight` does not mutate the SDK. Packaging stages only this plugin, builds the Linux editor target, imports the original assets, builds the shipping targets, then invokes Alpakit to cook and package Windows clients and Linux servers. It validates native manifests, binaries and cooked content before copying archives to `dist/<SemVersion>/` (currently `dist/0.0.2/`). Detailed logs go to `build/`. Use `--output` to select a different destination.
+`--preflight` does not mutate the SDK. Packaging stages only this plugin, builds the Linux editor target, imports the original assets, builds the shipping targets, then invokes Alpakit to cook and package Windows clients and Linux servers. It validates native manifests, binaries and cooked content before copying archives to `dist/<SemVersion>/` (currently `dist/0.0.3/`). Detailed logs go to `build/`. Use `--output` to select a different destination.
 
 Do not run another build, cook or integration operation against the same SDK or build Wine prefix concurrently. The workflow refuses its existing locks and unrelated staged plugins; it does not steal ownership.
 
@@ -129,13 +130,13 @@ Sign in through the website's OAuth flow. The uploader needs the **SMR session t
 
 ```sh
 python3 Tools/upload_ficsit.py \
-  --archive dist/0.0.2/InfoScreens.zip \
+  --archive dist/0.0.3/InfoScreens.zip \
   --mod-reference InfoScreens \
-  --changelog "Add solid and fluid train freight displays; retain blueprint multiplayer fixes" \
+  --changelog "Add independent auto-fit heading and item fonts; simplify machine labels" \
   --stability release
 ```
 
-Use `--mod-id LISTING_ID` instead of `--mod-reference`, or `--changelog-file /path/to/notes.txt` instead of inline notes. The script validates matching release version metadata from the selected archive (including both 0.0.1 and 0.0.2), checks account/listing access, uploads numbered chunks unchanged, finalizes, and waits for processing. Successful processing can still require scanning/moderator approval. It does not create listings or bypass approval.
+Use `--mod-id LISTING_ID` instead of `--mod-reference`, or `--changelog-file /path/to/notes.txt` instead of inline notes. The script validates matching release version metadata from the selected archive, checks account/listing access, uploads numbered chunks unchanged, finalizes, and waits for processing. Successful processing can still require scanning/moderator approval. It does not create listings or bypass approval.
 
 This command performs a real upload. If finalization or polling fails, inspect the listing before rerunning: server processing may continue after the client exits. There is no automatic retry or destructive cleanup.
 
@@ -179,6 +180,10 @@ The current licensed Windows client is at `~/Satisfactory`; its Steam native-mod
 - Rebuilt 0.0.2 with freight support plus both 0.0.1 hotfixes. All ten native automation cases passed with zero test failures/warnings, including freight cargo transitions and blueprint binding preservation; the editor retains the documented startup-error exit code. Host state tests and all 23 uploader tests passed. All five archives passed integrity/version/native-manifest checks and merged-package upload validation.
 - The packaged 0.0.2 single-player freight scenario showed 37 / 6400 iron plates and 123 / 2400 m³ water, retained attachment during translation/rotation, accepted a layout edit, cleared unloaded cargo and removed the display when the wagon was destroyed. A fresh-process reload restored fluid cargo, layout and attachment. Evidence: `windows-client/infoscreens-freight-002-single-player.log` and `windows-client/infoscreens-freight-002-reload.log`.
 - Joined the Linux dedicated server from the Windows Steam client with a real freight wagon registered on a native rail graph. Separate solid and fluid scenarios replicated 37 / 6400 iron plates and the transition to 123 / 2400 m³ water. Both clients completed with zero failures, confirmed wagon attachment and exclusion from the static source index, and denied direct client inventory reads. The server created no screen widgets. Evidence: `windows-client/infoscreens-freight-002-ontrack-solid-client.log`, `windows-client/infoscreens-freight-002-ontrack-fluid-client.log`, and corresponding `linux-server/infoscreens-freight-002-ontrack-{solid,fluid}.log`. These were stationary on-track multiplayer fixtures; movement and save/reload were exercised separately in single-player.
+- Built and packaged 0.0.3 for Windows Steam/EGS and Linux dedicated servers. All eleven native automation cases passed with zero test failures/warnings, including measured horizontal/vertical font fitting, maximal-fit boundaries, independent font controls and layout validation. The whole editor retains the documented SDK startup-error exit code. Host state tests and all 23 uploader tests passed.
+- Rendered the packaged 0.0.3 sign through D3D11/DXVK with both a two-item blueprint and twelve distinct long ingredient labels/rates. Both fit without text overlap or clipping. Native save and fresh-process reload retained independent manual item/heading sizes. Evidence: `build/font-visual-evidence/auto-two-rows.png`, `build/font-visual-evidence/auto-twelve-rows.png`, `windows-client/infoscreens-font-save.log`, and `windows-client/infoscreens-font-reload.log`.
+- Opened the native E configuration UI at 1280×720, disabled the two Auto-fit controls independently, entered heading size 42 and item size 64, and applied the layout. The editor confirmed the authoritative save and the world sign rendered the smaller heading independently of the item list. Evidence: `build/font-visual-evidence/editor-independent-values-saved.png` and `build/font-visual-evidence/manual-world-sign.png`.
+- A real Windows client joined the Linux dedicated server with 0.0.3 on both. It received distinct heading/item sizes, changed both through the player-owned RPC, and restored both to Auto-fit; each change returned through authoritative replication. The client completed with zero failures. Evidence: `windows-client/infoscreens-font-network-final-pass.log` and `linux-server/infoscreens-font-server.log`.
 
 Evidence includes `build/assets-fixed.log`, `build/automation.log`, `build/automation/index.json`, `build/host/Testing/Temporary/LastTest.log`, and baseline runtime logs/screenshots under `~/satisfactory-modding/info-screens-workspace/{linux-server,windows-client,asset-authoring}`.
 
@@ -190,7 +195,7 @@ cmake --build build/host
 ctest --test-dir build/host --output-on-failure
 ```
 
-Native automation tests are under `Mods/InfoScreens/Source/InfoScreens/Private/Tests`; all ten selected cases passed with the whole-editor caveat above. Verification limits: existing machine fixtures exercised idle typed telemetry, not complete running production chains; concurrent editing was checked through production state-machine tests rather than two simultaneous game clients; modded-container commands were exercised without installing a third-party container mod. Original visual checks were partly obscured by the vanilla welcome overlay. The EGS target was compiled and packaged, not runtime-tested. Blueprint remote construction, replication and mode switching were exercised with real Windows-to-Linux networking. The user's exact Smart!/Infinite Zoop placement gesture and full designer blueprint-file UI workflow were not replayed; the grouping mechanism was reproduced directly on real actors. Temporary native probes are confined to isolated test installations and never shipped.
+Native automation tests are under `Mods/InfoScreens/Source/InfoScreens/Private/Tests`; all eleven selected cases passed with the whole-editor caveat above. Verification limits: existing machine fixtures exercised idle typed telemetry, not complete running production chains; concurrent editing was checked through production state-machine tests rather than two simultaneous game clients; modded-container commands were exercised without installing a third-party container mod. Original visual checks were partly obscured by the vanilla welcome overlay. The EGS target was compiled and packaged, not runtime-tested. Blueprint remote construction, replication and mode switching were exercised with real Windows-to-Linux networking. The user's exact Smart!/Infinite Zoop placement gesture and full designer blueprint-file UI workflow were not replayed; the grouping mechanism was reproduced directly on real actors. Temporary native probes are confined to isolated test installations and never shipped.
 
 ## Sources
 

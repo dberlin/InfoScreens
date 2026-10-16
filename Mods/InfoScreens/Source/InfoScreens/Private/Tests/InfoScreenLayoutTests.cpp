@@ -9,6 +9,31 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInfoScreenLayoutLimitsTest, "InfoScreens.Confi
 bool FInfoScreenLayoutLimitsTest::RunTest(const FString& Parameters)
 {
     FInfoScreenLayout Layout;
+    TestEqual(TEXT("Absent legacy font settings default to auto-fit"), Layout.FontSize, 0);
+    TestEqual(TEXT("Absent legacy heading settings default to auto-fit"), Layout.HeadingFontSize, 0);
+    TestTrue(TEXT("Auto-fit is a valid font setting"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = 1;
+    TestTrue(TEXT("Smallest manual font is allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = 256;
+    TestTrue(TEXT("Largest manual font is allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = -1;
+    TestFalse(TEXT("Negative font sizes are rejected"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = 257;
+    TestFalse(TEXT("Font sizes above the manual limit are rejected"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = 0;
+    Layout.HeadingFontSize = 1;
+    TestTrue(TEXT("Manual heading font with auto-fit items is allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.HeadingFontSize = 256;
+    Layout.FontSize = 48;
+    TestTrue(TEXT("Largest manual heading font with independent manual items is allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.HeadingFontSize = -1;
+    TestFalse(TEXT("Negative heading font is rejected independently of items"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.HeadingFontSize = 257;
+    TestFalse(TEXT("Oversized heading font is rejected independently of items"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.HeadingFontSize = 0;
+    TestTrue(TEXT("Auto-fit heading with manual items is allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
+    Layout.FontSize = 0;
+
     Layout.Front = FTransform(FRotator(15.0, 90.0, -30.0), FVector(10000.0, -10000.0, 0.0), FVector(0.01, 20.0, 1.0));
     TestTrue(TEXT("Boundary positions and nonuniform positive scales are allowed"), AInfoScreenSubsystem::IsValidLayout(Layout));
 

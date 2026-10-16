@@ -30,6 +30,70 @@ namespace
         return Text;
     }
 
+    FInfoScreenTextRegion MakeRegion(UWidgetTree* Tree, UVerticalBox* Panel, UWidget* Content, FName Name)
+    {
+        FInfoScreenTextRegion Region;
+        Region.Content = Content;
+        Region.Area = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), Name);
+        Region.Area->SetWidthOverride(972.0f);
+        Region.Area->SetClipping(EWidgetClipping::ClipToBounds);
+        Panel->AddChildToVerticalBox(Region.Area);
+        Region.Scale = Tree->ConstructWidget<UScaleBox>();
+        Region.Scale->SetStretchDirection(EStretchDirection::DownOnly);
+        Region.Area->SetContent(Region.Scale);
+        Region.Width = Tree->ConstructWidget<USizeBox>();
+        Region.Scale->SetContent(Region.Width);
+        CastChecked<UScaleBoxSlot>(Region.Width->Slot)->SetHorizontalAlignment(HAlign_Left);
+        CastChecked<UScaleBoxSlot>(Region.Width->Slot)->SetVerticalAlignment(VAlign_Top);
+        Region.Width->SetContent(Content);
+        return Region;
+    }
+
+    float FitRegion(FInfoScreenTextRegion& Region, int32 RequestedFont, float HeightBudget,
+        int32 AutoMaximum, TFunctionRef<void(int32)> ApplyFont, bool FillHeight = false)
+    {
+        const TSharedRef<SWidget> SlateContent = Region.Content->TakeWidget();
+        const auto Measure = [&](int32 FontSize)
+        {
+            ApplyFont(FontSize);
+            // Font/slot setters dirty descendants. Dirty the region too so each
+            // prepass computes a fresh natural size, never the previous candidate.
+            SlateContent->Invalidate(EInvalidateWidgetReason::Layout);
+            SlateContent->SlatePrepass(1.0f);
+            return SlateContent->GetDesiredSize();
+        };
+        int32 AppliedFont = RequestedFont;
+        if (RequestedFont == 0)
+        {
+            int32 Low = 1;
+            int32 High = AutoMaximum;
+            AppliedFont = 1;
+            while (Low <= High)
+            {
+                const int32 Candidate = Low + (High - Low) / 2;
+                const FVector2D Size = Measure(Candidate);
+                if (Size.X <= 972.0f && Size.Y <= HeightBudget)
+                {
+                    AppliedFont = Candidate;
+                    Low = Candidate + 1;
+                }
+                else
+                {
+                    High = Candidate - 1;
+                }
+            }
+        }
+        const FVector2D Size = Measure(AppliedFont);
+        const float Height = FillHeight ? HeightBudget : FMath::Min(HeightBudget, static_cast<float>(Size.Y));
+        Region.Area->SetHeightOverride(Height);
+        Region.Area->SetVisibility(Height > 0.0f ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+        // Reserve natural column widths even if size 1 cannot fit. Only auto mode
+        // may uniformly scale that extreme case; manual choices clip, never distort.
+        Region.Width->SetWidthOverride(FMath::Max(972.0f, static_cast<float>(Size.X)));
+        Region.Scale->SetStretch(RequestedFont == 0 ? EStretch::ScaleToFit : EStretch::None);
+        return Height;
+    }
+
     FText Number(double Value)
     {
         FNumberFormattingOptions Options;
@@ -79,102 +143,78 @@ void UInfoScreenWidget::BuildTree()
     Background->SetBrushColor(FLinearColor::Black);
     Background->SetPadding(FMargin(26.0f, 20.0f));
     Background->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    Background->SetClipping(EWidgetClipping::ClipToBounds);
     WidgetTree->RootWidget = Background;
 
-    UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>();
+    Content = WidgetTree->ConstructWidget<UVerticalBox>();
     Background->SetContent(Content);
-    UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>();
-    Content->AddChildToVerticalBox(Header)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+    Header = WidgetTree->ConstructWidget<UHorizontalBox>();
+    HeadingRegion = MakeRegion(WidgetTree, Content, Header, TEXT("HeadingRegion"));
 
-    USizeBox* IconBox = WidgetTree->ConstructWidget<USizeBox>();
-    IconBox->SetWidthOverride(112.0f);
-    IconBox->SetHeightOverride(112.0f);
+    MainIconBox = WidgetTree->ConstructWidget<USizeBox>();
     MainIcon = WidgetTree->ConstructWidget<UImage>();
-    IconBox->SetContent(MainIcon);
-    Header->AddChildToHorizontalBox(IconBox)->SetPadding(FMargin(0.0f, 0.0f, 20.0f, 0.0f));
+    MainIconBox->SetContent(MainIcon);
+    Header->AddChildToHorizontalBox(MainIconBox);
 
     UVerticalBox* Heading = WidgetTree->ConstructWidget<UVerticalBox>();
     UHorizontalBoxSlot* HeadingSlot = Header->AddChildToHorizontalBox(Heading);
     HeadingSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     HeadingSlot->SetVerticalAlignment(VAlign_Center);
     Title = MakeText(WidgetTree, 34, Orange);
-    Title->SetAutoWrapText(true);
     Heading->AddChildToVerticalBox(Title);
     Detail = MakeText(WidgetTree, 23, FLinearColor::White);
-    Detail->SetAutoWrapText(true);
-    Heading->AddChildToVerticalBox(Detail)->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+    Heading->AddChildToVerticalBox(Detail);
 
     Metrics = WidgetTree->ConstructWidget<UVerticalBox>();
-    MetricsScale = WidgetTree->ConstructWidget<UScaleBox>();
-    MetricsScale->SetStretch(EStretch::Fill);
-    MetricsScale->SetStretchDirection(EStretchDirection::DownOnly);
-    USizeBox* MetricsWidth = WidgetTree->ConstructWidget<USizeBox>();
-    // Match the 1024-pixel render target minus the background's horizontal padding.
-    MetricsWidth->SetWidthOverride(972.0f);
-    MetricsWidth->SetContent(Metrics);
-    MetricsScale->SetContent(MetricsWidth);
-    CastChecked<UScaleBoxSlot>(MetricsWidth->Slot)->SetVerticalAlignment(VAlign_Top);
-    Content->AddChildToVerticalBox(MetricsScale)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
+    ItemsRegion = MakeRegion(WidgetTree, Content, Metrics, TEXT("ItemListRegion"));
+    Summary = WidgetTree->ConstructWidget<UVerticalBox>();
+    SummaryRegion = MakeRegion(WidgetTree, Content, Summary, TEXT("SummaryRegion"));
     FillText = MakeText(WidgetTree, 21, FLinearColor::White);
-    Content->AddChildToVerticalBox(FillText)->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 4.0f));
+    Summary->AddChildToVerticalBox(FillText);
     Fullness = WidgetTree->ConstructWidget<UProgressBar>();
     Fullness->SetFillColorAndOpacity(Orange);
-    USizeBox* BarBox = WidgetTree->ConstructWidget<USizeBox>();
-    BarBox->SetHeightOverride(18.0f);
+    BarBox = WidgetTree->ConstructWidget<USizeBox>();
     BarBox->SetContent(Fullness);
-    Content->AddChildToVerticalBox(BarBox);
+    Summary->AddChildToVerticalBox(BarBox);
     Footer = MakeText(WidgetTree, 21, FLinearColor::White);
-    Footer->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(Footer)->SetPadding(FMargin(0.0f, 12.0f, 0.0f, 6.0f));
+    Summary->AddChildToVerticalBox(Footer);
     Status = MakeText(WidgetTree, 22, Orange);
-    Status->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(Status);
+    Summary->AddChildToVerticalBox(Status);
 }
 
 void UInfoScreenWidget::AddMetricRow()
 {
     FInfoScreenMetricWidgets Row;
     Row.Root = WidgetTree->ConstructWidget<UHorizontalBox>();
-    Metrics->AddChildToVerticalBox(Row.Root)->SetPadding(FMargin(0.0f, 4.0f));
+    Metrics->AddChildToVerticalBox(Row.Root);
     Row.IconBox = WidgetTree->ConstructWidget<USizeBox>();
-    Row.IconBox->SetWidthOverride(36.0f);
-    Row.IconBox->SetHeightOverride(36.0f);
     Row.Icon = WidgetTree->ConstructWidget<UImage>();
     Row.IconBox->SetContent(Row.Icon);
-    Row.Root->AddChildToHorizontalBox(Row.IconBox)->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
+    Row.Root->AddChildToHorizontalBox(Row.IconBox);
     Row.Label = MakeText(WidgetTree, 24, FLinearColor::White);
     Row.Amount = MakeText(WidgetTree, 24, FLinearColor::White);
-    Row.Rate = MakeText(WidgetTree, 23, Orange);
+    Row.Rate = MakeText(WidgetTree, 24, Orange);
     Row.Amount->SetJustification(ETextJustify::Right);
     Row.Rate->SetJustification(ETextJustify::Right);
     UHorizontalBoxSlot* LabelSlot = Row.Root->AddChildToHorizontalBox(Row.Label);
-    FSlateChildSize LabelSize(ESlateSizeRule::Fill);
-    LabelSize.Value = 0.46f;
-    LabelSlot->SetSize(LabelSize);
+    LabelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     LabelSlot->SetVerticalAlignment(VAlign_Center);
-    UHorizontalBoxSlot* AmountSlot = Row.Root->AddChildToHorizontalBox(Row.Amount);
-    FSlateChildSize AmountSize(ESlateSizeRule::Fill);
-    AmountSize.Value = 0.32f;
-    AmountSlot->SetSize(AmountSize);
-    AmountSlot->SetPadding(FMargin(8.0f, 0.0f));
-    AmountSlot->SetVerticalAlignment(VAlign_Center);
-    UHorizontalBoxSlot* RateSlot = Row.Root->AddChildToHorizontalBox(Row.Rate);
-    FSlateChildSize RateSize(ESlateSizeRule::Fill);
-    RateSize.Value = 0.22f;
-    RateSlot->SetSize(RateSize);
-    RateSlot->SetPadding(FMargin(12.0f, 0.0f, 0.0f, 0.0f));
-    RateSlot->SetVerticalAlignment(VAlign_Center);
+    // Numeric columns reserve their real text widths rather than arbitrary percentages.
+    // The fitting pass includes the label's desired width before allocating the remainder.
+    Row.Root->AddChildToHorizontalBox(Row.Amount)->SetVerticalAlignment(VAlign_Center);
+    Row.Root->AddChildToHorizontalBox(Row.Rate)->SetVerticalAlignment(VAlign_Center);
     MetricRows.Add(Row);
 }
 
-void UInfoScreenWidget::SetSnapshot(const FInfoScreenSnapshot& InSnapshot)
+void UInfoScreenWidget::SetSnapshot(const FInfoScreenSnapshot& InSnapshot, int32 InFontSize, int32 InHeadingFontSize)
 {
     if (IsRunningDedicatedServer() || (GetWorld() && GetWorld()->GetNetMode() == NM_DedicatedServer))
     {
         return;
     }
     Snapshot = InSnapshot;
+    RequestedFontSize = FMath::Clamp(InFontSize, 0, 256);
+    RequestedHeadingFontSize = FMath::Clamp(InHeadingFontSize, 0, 256);
     RefreshSnapshot();
 }
 
@@ -187,15 +227,16 @@ void UInfoScreenWidget::RefreshSnapshot()
     Title->SetText(Snapshot.Title);
     Detail->SetText(Snapshot.Detail);
     MainIcon->SetBrushFromTexture(Snapshot.Icon ? UFGItemDescriptor::GetBigIcon(Snapshot.Icon) : nullptr);
-    MainIcon->SetVisibility(Snapshot.Icon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+    MainIconBox->SetVisibility(Snapshot.Icon ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+    Title->SetVisibility(Snapshot.Title.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    Detail->SetVisibility(Snapshot.Detail.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    Header->SetVisibility(Snapshot.Icon || !Snapshot.Title.IsEmpty() || !Snapshot.Detail.IsEmpty()
+        ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 
-    // A blueprint can contain more distinct ingredients than one machine; keep every row visible.
-    MetricsScale->SetStretch(Snapshot.Kind == EInfoScreenKind::Blueprint ? EStretch::ScaleToFit : EStretch::Fill);
     while (MetricRows.Num() < Snapshot.Rows.Num())
     {
         AddMetricRow();
     }
-    const int32 FontSize = Snapshot.Rows.Num() > 10 ? 19 : 24;
     for (int32 Index = 0; Index < MetricRows.Num(); ++Index)
     {
         FInfoScreenMetricWidgets& Widgets = MetricRows[Index];
@@ -206,22 +247,12 @@ void UInfoScreenWidget::RefreshSnapshot()
         }
         const FInfoScreenRow& Row = Snapshot.Rows[Index];
         Widgets.Root->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-        const bool Compact = Snapshot.Rows.Num() > 10;
-        Widgets.IconBox->SetWidthOverride(Compact ? 24.0f : 36.0f);
-        Widgets.IconBox->SetHeightOverride(Compact ? 24.0f : 36.0f);
-        if (UVerticalBoxSlot* RowSlot = Cast<UVerticalBoxSlot>(Widgets.Root->Slot))
-        {
-            RowSlot->SetPadding(FMargin(0.0f, Compact ? 2.0f : 4.0f));
-        }
         Widgets.Amount->SetVisibility(Row.bHasAmount ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
         Widgets.Rate->SetVisibility(Row.bHasRate ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
         Widgets.Icon->SetBrushFromTexture(Row.Item ? UFGItemDescriptor::GetSmallIcon(Row.Item) : nullptr);
-        Widgets.Icon->SetVisibility(Row.Item ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+        Widgets.IconBox->SetVisibility(Row.Item ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
         Widgets.Label->SetText(!Row.Label.IsEmpty() ? Row.Label :
             (Row.Item ? UFGItemDescriptor::GetItemName(Row.Item) : FText::GetEmpty()));
-        Widgets.Label->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", FontSize));
-        Widgets.Amount->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", FontSize));
-        Widgets.Rate->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", FontSize));
         Widgets.Amount->SetText(!Row.bHasAmount ? FText::GetEmpty() : (Row.bHasCapacity
             ? FText::Format(LOCTEXT("AmountCapacity", "{0} / {1} {2}"), Number(Row.Amount), Number(Row.Capacity), Unit(Row.Unit))
             : FText::Format(LOCTEXT("Amount", "{0} {1}"), Number(Row.Amount), Unit(Row.Unit))));
@@ -232,7 +263,8 @@ void UInfoScreenWidget::RefreshSnapshot()
 
     const float Ratio = FMath::IsFinite(Snapshot.FillRatio) ? FMath::Clamp(Snapshot.FillRatio, 0.0f, 1.0f) : 0.0f;
     Fullness->SetPercent(Ratio);
-    Fullness->SetVisibility(Snapshot.bHasFill ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+    BarBox->SetVisibility(Snapshot.bHasFill ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+    FillText->SetVisibility(Snapshot.bHasFill ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
     FillText->SetText(Snapshot.bHasFill
         ? FText::Format(LOCTEXT("Fullness", "Fullness: {0}%"), Number(Ratio * 100.0)) : FText::GetEmpty());
 
@@ -248,6 +280,64 @@ void UInfoScreenWidget::RefreshSnapshot()
         ? FText::Format(LOCTEXT("Footer", "{0}    {1}"), Power, Production)
         : (!Power.IsEmpty() ? Power : Production));
     Status->SetText(Snapshot.Status);
+    Footer->SetVisibility(Footer->GetText().IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    Status->SetVisibility(Snapshot.Status.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+    FitContent();
+}
+
+void UInfoScreenWidget::ApplyHeadingFontSize(int32 FontSize)
+{
+    const float Scale = FontSize / 34.0f;
+    Title->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", FontSize));
+    Detail->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", FMath::Max(1, FMath::RoundToInt(23.0f * Scale))));
+    MainIconBox->SetWidthOverride(112.0f * Scale);
+    MainIconBox->SetHeightOverride(112.0f * Scale);
+    CastChecked<UHorizontalBoxSlot>(MainIconBox->Slot)->SetPadding(FMargin(0.0f, 0.0f, 20.0f * Scale, 0.0f));
+    CastChecked<UVerticalBoxSlot>(Detail->Slot)->SetPadding(FMargin(0.0f, 6.0f * Scale, 0.0f, 0.0f));
+}
+
+void UInfoScreenWidget::ApplySummaryFontSize(int32 FontSize)
+{
+    const float Scale = FontSize / 24.0f;
+    const FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle("Regular", FontSize);
+    FillText->SetFont(Font);
+    Footer->SetFont(Font);
+    Status->SetFont(Font);
+    CastChecked<UVerticalBoxSlot>(FillText->Slot)->SetPadding(FMargin(0.0f, 8.0f * Scale, 0.0f, 4.0f * Scale));
+    CastChecked<UVerticalBoxSlot>(Footer->Slot)->SetPadding(FMargin(0.0f, 12.0f * Scale, 0.0f, 6.0f * Scale));
+    BarBox->SetHeightOverride(18.0f * Scale);
+}
+
+void UInfoScreenWidget::ApplyItemFontSize(int32 FontSize)
+{
+    const float Scale = FontSize / 24.0f;
+    const FSlateFontInfo DataFont = FCoreStyle::GetDefaultFontStyle("Regular", FontSize);
+    for (int32 Index = 0; Index < Snapshot.Rows.Num(); ++Index)
+    {
+        FInfoScreenMetricWidgets& Row = MetricRows[Index];
+        Row.Label->SetFont(DataFont);
+        Row.Amount->SetFont(DataFont);
+        Row.Rate->SetFont(DataFont);
+        Row.IconBox->SetWidthOverride(36.0f * Scale);
+        Row.IconBox->SetHeightOverride(36.0f * Scale);
+        CastChecked<UVerticalBoxSlot>(Row.Root->Slot)->SetPadding(FMargin(0.0f, 4.0f * Scale));
+        CastChecked<UHorizontalBoxSlot>(Row.IconBox->Slot)->SetPadding(FMargin(0.0f, 0.0f, 10.0f * Scale, 0.0f));
+        CastChecked<UHorizontalBoxSlot>(Row.Amount->Slot)->SetPadding(FMargin(8.0f * Scale, 0.0f));
+        CastChecked<UHorizontalBoxSlot>(Row.Rate->Slot)->SetPadding(FMargin(12.0f * Scale, 0.0f, 0.0f, 0.0f));
+    }
+}
+
+void UInfoScreenWidget::FitContent()
+{
+    // Independent width constraints prevent a long heading or footer from shrinking
+    // the item list. Reserve only actual header/summary height, bounded to leave the
+    // majority of the 972x728 content panel available for data.
+    const float HeadingHeight = FitRegion(HeadingRegion, RequestedHeadingFontSize, 728.0f * 0.28f, 256,
+        [this](int32 FontSize) { ApplyHeadingFontSize(FontSize); });
+    const float SummaryHeight = FitRegion(SummaryRegion, 0, 728.0f * 0.24f, 24,
+        [this](int32 FontSize) { ApplySummaryFontSize(FontSize); });
+    FitRegion(ItemsRegion, RequestedFontSize, 728.0f - HeadingHeight - SummaryHeight, 256,
+        [this](int32 FontSize) { ApplyItemFontSize(FontSize); }, true);
 }
 
 #undef LOCTEXT_NAMESPACE

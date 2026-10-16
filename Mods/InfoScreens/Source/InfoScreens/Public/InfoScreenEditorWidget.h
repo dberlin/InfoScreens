@@ -48,6 +48,8 @@ private:
     void WriteLayoutFields(const FInfoScreenLayout& Layout);
     UFUNCTION() void OnDraftTextChanged(const FText& Text);
     UFUNCTION() void OnBackVisibilityChanged(bool Checked);
+    UFUNCTION() void OnAutoFitChanged(bool Checked);
+    UFUNCTION() void OnAutoFitHeadingChanged(bool Checked);
     UFUNCTION() void OnBlueprintFlowChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
     UFUNCTION() void Apply();
@@ -59,6 +61,10 @@ private:
     UPROPERTY(Transient) TWeakObjectPtr<UInfoScreenRemoteCall> RemoteCall;
     UPROPERTY(Transient) TArray<TObjectPtr<UEditableTextBox>> Fields;
     UPROPERTY(Transient) TObjectPtr<UCheckBox> ShowBack;
+    UPROPERTY(Transient) TObjectPtr<UCheckBox> AutoFit;
+    UPROPERTY(Transient) TObjectPtr<UEditableTextBox> FontSizeField;
+    UPROPERTY(Transient) TObjectPtr<UCheckBox> AutoFitHeading;
+    UPROPERTY(Transient) TObjectPtr<UEditableTextBox> HeadingFontSizeField;
     UPROPERTY(Transient) TObjectPtr<UComboBoxString> MovementTarget;
     UPROPERTY(Transient) TObjectPtr<UHorizontalBox> BlueprintOptions;
     UPROPERTY(Transient) TObjectPtr<UComboBoxString> BlueprintFlow;

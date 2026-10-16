@@ -303,7 +303,7 @@ namespace InfoScreenReader::Detail
             {
                 if (!Ingredient.ItemClass) continue;
                 FInfoScreenRow& Row = InventoryItem(Snapshot, Input, Ingredient.ItemClass,
-                    LOCTEXT("Input", "Input buffer (configured rate)"));
+                    LOCTEXT("Input", "Input buffer"));
                 Row.bHasRate = Cycle > 0.0;
                 Row.PerMinute = ConfiguredRate(ItemAmount(Ingredient.Amount, Ingredient.ItemClass), Cycle, 1.0);
             }
@@ -314,7 +314,7 @@ namespace InfoScreenReader::Detail
             {
                 if (!Product.ItemClass) continue;
                 FInfoScreenRow& Row = InventoryItem(Snapshot, Output, Product.ItemClass,
-                    LOCTEXT("Output", "Output buffer (configured rate)"));
+                    LOCTEXT("Output", "Output buffer"));
                 Row.bHasRate = Cycle > 0.0;
                 Row.PerMinute = ConfiguredRate(ItemAmount(Product.Amount, Product.ItemClass), Cycle,
                     Source->GetCurrentProductionBoost());

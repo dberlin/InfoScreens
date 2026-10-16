@@ -63,6 +63,10 @@ struct INFOSCREENS_API FInfoScreenLayout
     UPROPERTY(SaveGame) FTransform Back = FTransform(FRotator(0.0, 180.0, 0.0));
     UPROPERTY(SaveGame) bool bBackVisible = true;
     UPROPERTY(SaveGame) bool bBlueprintOutputs = false;
+    /** Item-list font: 0 auto-fits; 1..256 use render-target (1024x768) units. */
+    UPROPERTY(SaveGame) int32 FontSize = 0;
+    /** Heading font, independently auto-fitted or manually sized in the same units. */
+    UPROPERTY(SaveGame) int32 HeadingFontSize = 0;
 };
 
 USTRUCT()

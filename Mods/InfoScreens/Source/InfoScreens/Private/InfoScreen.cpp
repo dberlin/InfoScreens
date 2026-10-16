@@ -344,7 +344,7 @@ void AInfoScreen::RefreshPresentation()
             }
             if (UInfoScreenWidget* Widget = Cast<UInfoScreenWidget>(Panels[Index]->GetUserWidgetObject()))
             {
-                Widget->SetSnapshot(Snapshot);
+                Widget->SetSnapshot(Snapshot, Layout.FontSize, Layout.HeadingFontSize);
                 Panels[Index]->RequestRedraw();
             }
         }

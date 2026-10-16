@@ -265,7 +265,9 @@ void AInfoScreenSubsystem::RefreshScreens()
 
 bool AInfoScreenSubsystem::IsValidLayout(const FInfoScreenLayout& Layout)
 {
-    return IsValidPanelTransform(Layout.Front) && IsValidPanelTransform(Layout.Back);
+    return IsValidPanelTransform(Layout.Front) && IsValidPanelTransform(Layout.Back)
+        && Layout.FontSize >= 0 && Layout.FontSize <= 256
+        && Layout.HeadingFontSize >= 0 && Layout.HeadingFontSize <= 256;
 }
 
 bool AInfoScreenSubsystem::ApplyLayout(AInfoScreen* Screen, const FInfoScreenLayout& Layout)

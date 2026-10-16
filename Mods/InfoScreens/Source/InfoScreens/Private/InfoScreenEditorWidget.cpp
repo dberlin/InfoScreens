@@ -92,7 +92,7 @@ void UInfoScreenEditorWidget::BuildTree()
     WidgetTree->RootWidget = Size;
     UBorder* Background = WidgetTree->ConstructWidget<UBorder>();
     Background->SetBrushColor(FLinearColor(0.015f, 0.015f, 0.015f, 0.98f));
-    Background->SetPadding(FMargin(24.0f));
+    Background->SetPadding(FMargin(20.0f));
     Size->SetContent(Background);
     UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>();
     Background->SetContent(Content);
@@ -102,7 +102,7 @@ void UInfoScreenEditorWidget::BuildTree()
     UTextBlock* Description = MakeEditorText(WidgetTree,
         LOCTEXT("Description", "Transforms are relative to the container or freight car (or this standalone screen). Locations use centimeters, rotations use degrees. Changes remain a draft until Apply or Save preset."));
     Description->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(Description)->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 18.0f));
+    Content->AddChildToVerticalBox(Description)->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 12.0f));
 
     BlueprintOptions = WidgetTree->ConstructWidget<UHorizontalBox>();
     BlueprintOptions->SetVisibility(ESlateVisibility::Collapsed);
@@ -122,7 +122,7 @@ void UInfoScreenEditorWidget::BuildTree()
     BuildTransformFields(TransformGroups, LOCTEXT("Back", "BACK"));
 
     UHorizontalBox* Options = WidgetTree->ConstructWidget<UHorizontalBox>();
-    Content->AddChildToVerticalBox(Options)->SetPadding(FMargin(0.0f, 18.0f, 0.0f, 12.0f));
+    Content->AddChildToVerticalBox(Options)->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 8.0f));
     ShowBack = WidgetTree->ConstructWidget<UCheckBox>();
     ShowBack->SetContent(MakeEditorText(WidgetTree, LOCTEXT("ShowBack", "Show back screen")));
     ShowBack->OnCheckStateChanged.AddDynamic(this, &UInfoScreenEditorWidget::OnBackVisibilityChanged);
@@ -134,15 +134,51 @@ void UInfoScreenEditorWidget::BuildTree()
     MovementTarget->AddOption(TEXT("Back"));
     MovementTarget->SetSelectedIndex(0);
     Options->AddChildToHorizontalBox(MovementTarget)->SetPadding(FMargin(10.0f, 0.0f));
+    UHorizontalBox* FontOptions = WidgetTree->ConstructWidget<UHorizontalBox>();
+    Content->AddChildToVerticalBox(FontOptions)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+    FontOptions->AddChildToHorizontalBox(MakeEditorText(WidgetTree, LOCTEXT("HeadingFontSize", "Heading font:")))
+        ->SetVerticalAlignment(VAlign_Center);
+    AutoFitHeading = WidgetTree->ConstructWidget<UCheckBox>(UCheckBox::StaticClass(), TEXT("AutoFitHeadingCheckBox"));
+    AutoFitHeading->SetContent(MakeEditorText(WidgetTree, LOCTEXT("AutoFit", "Auto-fit")));
+    AutoFitHeading->SetToolTipText(LOCTEXT("AutoFitHeadingHelp", "Fit heading text independently of the item list."));
+    AutoFitHeading->OnCheckStateChanged.AddDynamic(this, &UInfoScreenEditorWidget::OnAutoFitHeadingChanged);
+    FontOptions->AddChildToHorizontalBox(AutoFitHeading)->SetPadding(FMargin(10.0f, 0.0f));
+    HeadingFontSizeField = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("HeadingFontSizeField"));
+    HeadingFontSizeField->WidgetStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 18));
+    HeadingFontSizeField->SetSelectAllTextWhenFocused(true);
+    HeadingFontSizeField->SetClearKeyboardFocusOnCommit(true);
+    HeadingFontSizeField->SetToolTipText(LOCTEXT("ManualHeadingFontHelp", "Manual heading font: 1 to 256 in 1024x768 sign units. Large sizes may clip."));
+    HeadingFontSizeField->OnTextChanged.AddDynamic(this, &UInfoScreenEditorWidget::OnDraftTextChanged);
+    USizeBox* HeadingFontSizeBox = WidgetTree->ConstructWidget<USizeBox>();
+    HeadingFontSizeBox->SetWidthOverride(80.0f);
+    HeadingFontSizeBox->SetContent(HeadingFontSizeField);
+    FontOptions->AddChildToHorizontalBox(HeadingFontSizeBox)->SetPadding(FMargin(0.0f, 0.0f, 24.0f, 0.0f));
+    FontOptions->AddChildToHorizontalBox(MakeEditorText(WidgetTree, LOCTEXT("FontSize", "Items font:")))
+        ->SetVerticalAlignment(VAlign_Center);
+    AutoFit = WidgetTree->ConstructWidget<UCheckBox>(UCheckBox::StaticClass(), TEXT("AutoFitFontCheckBox"));
+    AutoFit->SetContent(MakeEditorText(WidgetTree, LOCTEXT("AutoFit", "Auto-fit")));
+    AutoFit->SetToolTipText(LOCTEXT("AutoFitHelp", "Fit item-list text independently of the heading."));
+    AutoFit->OnCheckStateChanged.AddDynamic(this, &UInfoScreenEditorWidget::OnAutoFitChanged);
+    FontOptions->AddChildToHorizontalBox(AutoFit)->SetPadding(FMargin(10.0f, 0.0f));
+    FontSizeField = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("FontSizeField"));
+    FontSizeField->WidgetStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 18));
+    FontSizeField->SetSelectAllTextWhenFocused(true);
+    FontSizeField->SetClearKeyboardFocusOnCommit(true);
+    FontSizeField->SetToolTipText(LOCTEXT("ManualFontHelp", "Manual font size: 1 to 256 in 1024x768 sign units. Large sizes may clip. Enable Auto-fit to fit all content."));
+    FontSizeField->OnTextChanged.AddDynamic(this, &UInfoScreenEditorWidget::OnDraftTextChanged);
+    USizeBox* FontSizeBox = WidgetTree->ConstructWidget<USizeBox>();
+    FontSizeBox->SetWidthOverride(80.0f);
+    FontSizeBox->SetContent(FontSizeField);
+    FontOptions->AddChildToHorizontalBox(FontSizeBox);
 
     UTextBlock* Hint = MakeEditorText(WidgetTree,
         LOCTEXT("Hint", "Keyboard move (outside text fields): Y / H = +X / −X, U / J = +Y / −Y, T / G = +Z / −Z. Each press moves the selected draft by 1 cm. Click a label or press Tab out of a field, then Apply. Escape closes without applying drafts."));
     Hint->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+    Content->AddChildToVerticalBox(Hint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
     UTextBlock* PresetHint = MakeEditorText(WidgetTree,
         LOCTEXT("PresetHint", "Save preset applies this draft to every screen on the same source type and to future sources. Load preset restores that type's saved server layout."), 17);
     PresetHint->SetAutoWrapText(true);
-    Content->AddChildToVerticalBox(PresetHint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 14.0f));
+    Content->AddChildToVerticalBox(PresetHint)->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
 
     Status = MakeEditorText(WidgetTree, FText::GetEmpty(), 18, Orange);
     Status->SetAutoWrapText(true);
@@ -317,6 +353,22 @@ void UInfoScreenEditorWidget::OnBackVisibilityChanged(bool Checked)
         EditState.ChangeDraft();
 }
 
+void UInfoScreenEditorWidget::OnAutoFitChanged(bool Checked)
+{
+    if (FontSizeField)
+        FontSizeField->SetIsEnabled(!Checked);
+    if (!bWritingFields)
+        EditState.ChangeDraft();
+}
+
+void UInfoScreenEditorWidget::OnAutoFitHeadingChanged(bool Checked)
+{
+    if (HeadingFontSizeField)
+        HeadingFontSizeField->SetIsEnabled(!Checked);
+    if (!bWritingFields)
+        EditState.ChangeDraft();
+}
+
 void UInfoScreenEditorWidget::OnBlueprintFlowChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
 {
     if (!bWritingFields)
@@ -325,7 +377,7 @@ void UInfoScreenEditorWidget::OnBlueprintFlowChanged(FString SelectedItem, ESele
 
 void UInfoScreenEditorWidget::WriteLayoutFields(const FInfoScreenLayout& Layout)
 {
-    if (Fields.Num() != 18 || !ShowBack)
+    if (Fields.Num() != 18 || !ShowBack || !AutoFit || !FontSizeField || !AutoFitHeading || !HeadingFontSizeField)
         return;
     TGuardValue<bool> WritingGuard(bWritingFields, true);
     const FTransform* Transforms[] = { &Layout.Front, &Layout.Back };
@@ -344,6 +396,12 @@ void UInfoScreenEditorWidget::WriteLayoutFields(const FInfoScreenLayout& Layout)
         }
     }
     ShowBack->SetIsChecked(Layout.bBackVisible);
+    AutoFit->SetIsChecked(Layout.FontSize == 0);
+    FontSizeField->SetText(FText::FromString(FString::FromInt(Layout.FontSize == 0 ? 48 : Layout.FontSize)));
+    FontSizeField->SetIsEnabled(Layout.FontSize != 0);
+    AutoFitHeading->SetIsChecked(Layout.HeadingFontSize == 0);
+    HeadingFontSizeField->SetText(FText::FromString(FString::FromInt(Layout.HeadingFontSize == 0 ? 48 : Layout.HeadingFontSize)));
+    HeadingFontSizeField->SetIsEnabled(Layout.HeadingFontSize != 0);
     if (BlueprintFlow)
         BlueprintFlow->SetSelectedIndex(Layout.bBlueprintOutputs ? 1 : 0);
 }
@@ -370,10 +428,41 @@ UInfoScreenRemoteCall* UInfoScreenEditorWidget::GetRemoteCall()
 
 bool UInfoScreenEditorWidget::ReadDraft(FInfoScreenLayout& OutLayout)
 {
-    if (!Screen.IsValid() || Fields.Num() != 18)
+    if (!Screen.IsValid() || Fields.Num() != 18 || !ShowBack || !AutoFit || !FontSizeField
+        || !AutoFitHeading || !HeadingFontSizeField)
     {
         SetStatus(LOCTEXT("UnavailableScreen", "The screen is no longer available."));
         return false;
+    }
+    int32 FontSizes[] = { 0, 0 };
+    const UCheckBox* AutoFitChecks[] = { AutoFit.Get(), AutoFitHeading.Get() };
+    UEditableTextBox* FontFields[] = { FontSizeField.Get(), HeadingFontSizeField.Get() };
+    for (int32 Index = 0; Index < 2; ++Index)
+    {
+        if (AutoFitChecks[Index]->IsChecked())
+            continue;
+        const FString Text = FontFields[Index]->GetText().ToString().TrimStartAndEnd();
+        bool Valid = !Text.IsEmpty();
+        for (const TCHAR Character : Text)
+        {
+            if (Character < TEXT('0') || Character > TEXT('9'))
+            {
+                Valid = false;
+                break;
+            }
+            FontSizes[Index] = FontSizes[Index] * 10 + Character - TEXT('0');
+            if (FontSizes[Index] > 256)
+            {
+                Valid = false;
+                break;
+            }
+        }
+        if (!Valid || FontSizes[Index] < 1)
+        {
+            SetStatus(LOCTEXT("InvalidFontSize", "Manual heading and items fonts must be whole numbers from 1 to 256. Enable each Auto-fit to fit that content."));
+            FontFields[Index]->SetKeyboardFocus();
+            return false;
+        }
     }
     double Values[18];
     for (int32 Index = 0; Index < 18; ++Index)
@@ -402,6 +491,8 @@ bool UInfoScreenEditorWidget::ReadDraft(FInfoScreenLayout& OutLayout)
         }
     }
     OutLayout.bBackVisible = ShowBack->IsChecked();
+    OutLayout.FontSize = FontSizes[0];
+    OutLayout.HeadingFontSize = FontSizes[1];
     OutLayout.bBlueprintOutputs = Screen->IsA<AInfoBlueprintScreen>() && BlueprintFlow
         && BlueprintFlow->GetSelectedIndex() == 1;
     return true;
@@ -499,7 +590,8 @@ bool UInfoScreenEditorWidget::IsEditingNumber() const
             return true;
         }
     }
-    return false;
+    return (FontSizeField && (FontSizeField->HasKeyboardFocus() || FontSizeField->HasFocusedDescendants()))
+        || (HeadingFontSizeField && (HeadingFontSizeField->HasKeyboardFocus() || HeadingFontSizeField->HasFocusedDescendants()));
 }
 
 FReply UInfoScreenEditorWidget::NativeOnKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
