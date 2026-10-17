@@ -1,6 +1,7 @@
 #include "InfoScreen.h"
 
 #include "Buildables/FGBuildableStorage.h"
+#include "Buildables/FGCentralStorageContainer.h"
 #include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
@@ -45,15 +46,48 @@ namespace
         {
             if (Source->IsA<AFGBuildableStorage>())
             {
+                const bool IsUploader = Source->IsA<AFGCentralStorageContainer>();
                 TInlineComponentArray<UStaticMeshComponent*> Meshes(Source);
                 for (const UStaticMeshComponent* Mesh : Meshes)
                 {
-                    if (Mesh->GetFName() != TEXT("FGColoredInstanceMeshProxy") || !Mesh->GetStaticMesh())
+                    const bool UploaderBody = IsUploader && Mesh->GetFName() == TEXT("MainMesh");
+                    if ((!UploaderBody && Mesh->GetFName() != TEXT("FGColoredInstanceMeshProxy"))
+                        || !Mesh->GetStaticMesh())
                         continue;
                     const FTransform MeshToActor = Mesh->GetComponentTransform()
                         .GetRelativeTransform(Source->GetActorTransform());
+                    FBox MeshBounds(ForceInit);
+                    FBox Footprint(ForceInit);
+                    if (UploaderBody)
+                    {
+                        MeshBounds = Mesh->CalcBounds(MeshToActor).GetBox();
+                        if (!MeshBounds.IsValid || MeshBounds.GetExtent().IsNearlyZero()) continue;
+                        const float Scale = FMath::Clamp(
+                            static_cast<float>(MeshBounds.GetSize().Y) / (PanelWidth + 16.0f), 0.35f, 1.0f);
+                        const FVector HalfPanel(0.0, PanelWidth * Scale * 0.5, PanelHeight * Scale * 0.5);
+                        Footprint = FBox(MeshBounds.GetCenter() - HalfPanel, MeshBounds.GetCenter() + HalfPanel);
+                    }
                     FBox Body(ForceInit);
                     double LargestVolume = 0.0;
+                    const auto ConsiderBody = [&](const FBox& Bounds)
+                    {
+                        if (!Bounds.IsValid) return;
+                        if (UploaderBody)
+                        {
+                            // Its split housing uses boxes, not one convex body.
+                            // Only surfaces beneath the panel may set its depth:
+                            // roof, cage corners and distant conveyor parts cannot.
+                            if (Bounds.Max.Y < Footprint.Min.Y || Bounds.Min.Y > Footprint.Max.Y
+                                || Bounds.Max.Z < Footprint.Min.Z || Bounds.Min.Z > Footprint.Max.Z)
+                                return;
+                            Body += Bounds;
+                        }
+                        else if (const double Volume = Bounds.GetVolume(); Volume > LargestVolume)
+                        {
+                            LargestVolume = Volume;
+                            Body = Bounds;
+                        }
+                    };
                     if (const UBodySetup* Collision = Mesh->GetStaticMesh()->GetBodySetup())
                     {
                         // The main hull follows the broad body faces. Smaller hulls
@@ -61,16 +95,27 @@ namespace
                         for (const FKConvexElem& Hull : Collision->AggGeom.ConvexElems)
                         {
                             if (!Hull.ElemBox.IsValid) continue;
-                            const FBox Bounds = Hull.ElemBox.TransformBy(Hull.GetTransform() * MeshToActor);
-                            const double Volume = Bounds.GetVolume();
-                            if (Volume > LargestVolume)
-                            {
-                                LargestVolume = Volume;
-                                Body = Bounds;
-                            }
+                            ConsiderBody(Hull.ElemBox.TransformBy(Hull.GetTransform() * MeshToActor));
                         }
+                        if (UploaderBody)
+                            for (const FKBoxElem& Box : Collision->AggGeom.BoxElems)
+                            {
+                                const FVector HalfSize = FVector(Box.X, Box.Y, Box.Z) * 0.5;
+                                ConsiderBody(FBox(-HalfSize, HalfSize).TransformBy(Box.GetTransform() * MeshToActor));
+                            }
                     }
-                    if (Body.IsValid) return Body;
+                    if (Body.IsValid)
+                    {
+                        if (UploaderBody)
+                        {
+                            // Keep the mesh-centered layout; simplified collision
+                            // needs a 1 cm margin to clear the rendered housing.
+                            MeshBounds.Min.X = Body.Min.X - 1.0;
+                            MeshBounds.Max.X = Body.Max.X + 1.0;
+                            return MeshBounds;
+                        }
+                        return Body;
+                    }
                     // Even without a body hull, exclude hidden ladder interaction boxes.
                     const FBox Bounds = Mesh->CalcBounds(MeshToActor).GetBox();
                     if (Bounds.IsValid && !Bounds.GetExtent().IsNearlyZero()) return Bounds;

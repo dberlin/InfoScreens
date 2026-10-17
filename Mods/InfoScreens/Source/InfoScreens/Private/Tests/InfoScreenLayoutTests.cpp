@@ -225,4 +225,71 @@ bool FInfoScreenStorageMountTest::RunTest(const FString& Parameters)
     }
     return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInfoScreenUploaderMountTest, "InfoScreens.Configuration.UploaderMount",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FInfoScreenUploaderMountTest::RunTest(const FString& Parameters)
+{
+    UWorld::InitializationValues Settings;
+    Settings.AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false).CreateAISystem(false);
+    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true,
+        ERHIFeatureLevel::Num, &Settings);
+    if (!TestNotNull(TEXT("Uploader mounting world"), World)) return false;
+    ON_SCOPE_EXIT { World->DestroyWorld(false); };
+    AFGCentralStorageContainer* Uploader = World->SpawnActor<AFGCentralStorageContainer>();
+    if (!TestNotNull(TEXT("Native dimensional uploader"), Uploader)) return false;
+    if (!Uploader->GetRootComponent())
+    {
+        USceneComponent* Root = NewObject<USceneComponent>(Uploader);
+        Uploader->SetRootComponent(Root);
+        Root->RegisterComponent();
+    }
+    Uploader->SetActorTransform(FTransform(FRotator(0, 37, 0), FVector(12000,-8000,500)));
+    UStaticMesh* Mesh = NewObject<UStaticMesh>(Uploader);
+    Mesh->SetExtendedBounds(FBoxSphereBounds(FBox(FVector(-240,-500,0), FVector(240,500,430))));
+    Mesh->CreateBodySetup();
+    const auto AddBox = [&](FVector Center, FVector Size)
+    {
+        FKBoxElem& Box = Mesh->GetBodySetup()->AggGeom.BoxElems.AddDefaulted_GetRef();
+        Box.Center = Center;
+        Box.X = Size.X;
+        Box.Y = Size.Y;
+        Box.Z = Size.Z;
+    };
+    // Separate housing sections overlap the display's footprint. The larger one
+    // alone is not the outermost wall under the complete screen.
+    AddBox(FVector(0,-180,180), FVector(292,336,288));
+    AddBox(FVector(0,200,180), FVector(282,430,280));
+    // This roof is larger than either housing section, but outside the display.
+    AddBox(FVector(0,0,390), FVector(460,960,80));
+    AddBox(FVector(225,400,200), FVector(20,40,400));
+    UStaticMeshComponent* Body = NewObject<UStaticMeshComponent>(Uploader, TEXT("MainMesh"));
+    Body->SetupAttachment(Uploader->GetRootComponent());
+    Body->SetStaticMesh(Mesh);
+    Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Body->SetRelativeLocationAndRotation(FVector(20,-15,30), FRotator(0,180,0));
+    Body->RegisterComponent();
+    for (const double Side : {-1.0, 1.0})
+    {
+        UBoxComponent* Ladder = NewObject<UBoxComponent>(Uploader);
+        Ladder->SetupAttachment(Uploader->GetRootComponent());
+        Ladder->SetBoxExtent(FVector(50,50,175));
+        Ladder->SetRelativeLocation(FVector(Side*300,0,235));
+        Ladder->SetHiddenInGame(true);
+        Ladder->RegisterComponent();
+    }
+    const FInfoScreenLayout Layout = AInfoScreen::DefaultContainerLayout(Uploader);
+    const double FrontClearance = Layout.Front.TransformPosition(FVector(-5,0,0)).X - 166.0;
+    const double BackClearance = -126.0 - Layout.Back.TransformPosition(FVector(-5,0,0)).X;
+    TestTrue(TEXT("Uploader front clears its full housing footprint without following ladders or roof"),
+        FrontClearance >= 0.0 && FrontClearance <= 2.0);
+    TestTrue(TEXT("Uploader back clears the rotated main mesh"),
+        BackClearance >= 0.0 && BackClearance <= 2.0);
+    TestTrue(TEXT("Uploader panels stay centered on the visible body"),
+        FMath::IsNearlyEqual(Layout.Front.GetLocation().Y, -15.0, 0.01)
+        && FMath::IsNearlyEqual(Layout.Front.GetLocation().Z, 245.0, 0.01)
+        && FMath::IsNearlyEqual(Layout.Back.GetLocation().Z, 245.0, 0.01));
+    return true;
+}
 #endif
