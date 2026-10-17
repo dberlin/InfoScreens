@@ -1,5 +1,6 @@
 #include "InfoScreen.h"
 
+#include "Buildables/FGBuildableStorage.h"
 #include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
@@ -18,6 +19,7 @@
 #include "InfoScreenSubsystem.h"
 #include "InfoScreenWidget.h"
 #include "Net/UnrealNetwork.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "InfoScreens"
@@ -28,6 +30,11 @@ namespace
     constexpr float PanelWidth = 240.0f;
     constexpr float PanelHeight = 180.0f;
     constexpr float PanelOffset = 8.0f;
+    constexpr float PanelBackingDepth = 5.0f;
+    // CL513885 LOD0 center geometry projects 20.65/101.10 cm beyond solid/fluid
+    // I/O planes. Simple collision omits it; round outward and retain 1 cm clearance.
+    constexpr float CargoPlatformSupportProjection = 21.0f;
+    constexpr float FluidPlatformSupportProjection = 102.0f;
     // CL513885 DefaultEngine.ini mappings; SDK stubs do not define the TC_* globals.
     constexpr ECollisionChannel InteractChannel = ECC_GameTraceChannel13;
     constexpr ECollisionChannel BuildGunChannel = ECC_GameTraceChannel5;
@@ -36,6 +43,39 @@ namespace
     {
         if (IsValid(Source))
         {
+            if (Source->IsA<AFGBuildableStorage>())
+            {
+                TInlineComponentArray<UStaticMeshComponent*> Meshes(Source);
+                for (const UStaticMeshComponent* Mesh : Meshes)
+                {
+                    if (Mesh->GetFName() != TEXT("FGColoredInstanceMeshProxy") || !Mesh->GetStaticMesh())
+                        continue;
+                    const FTransform MeshToActor = Mesh->GetComponentTransform()
+                        .GetRelativeTransform(Source->GetActorTransform());
+                    FBox Body(ForceInit);
+                    double LargestVolume = 0.0;
+                    if (const UBodySetup* Collision = Mesh->GetStaticMesh()->GetBodySetup())
+                    {
+                        // The main hull follows the broad body faces. Smaller hulls
+                        // describe conveyor mouths and trim, not a mounting wall.
+                        for (const FKConvexElem& Hull : Collision->AggGeom.ConvexElems)
+                        {
+                            if (!Hull.ElemBox.IsValid) continue;
+                            const FBox Bounds = Hull.ElemBox.TransformBy(Hull.GetTransform() * MeshToActor);
+                            const double Volume = Bounds.GetVolume();
+                            if (Volume > LargestVolume)
+                            {
+                                LargestVolume = Volume;
+                                Body = Bounds;
+                            }
+                        }
+                    }
+                    if (Body.IsValid) return Body;
+                    // Even without a body hull, exclude hidden ladder interaction boxes.
+                    const FBox Bounds = Mesh->CalcBounds(MeshToActor).GetBox();
+                    if (Bounds.IsValid && !Bounds.GetExtent().IsNearlyZero()) return Bounds;
+                }
+            }
             if (Source->IsA<AFGFreightWagon>())
             {
                 TInlineComponentArray<UStaticMeshComponent*> Meshes(Source);
@@ -79,17 +119,24 @@ namespace
             if (Port->GetDirection() != EFactoryConnectionDirection::FCD_SNAP_ONLY)
                 AddPort(Port->GetComponentLocation(), Port->GetConnectorNormal());
         TInlineComponentArray<UFGPipeConnectionComponent*> Pipes(Target);
+        bool HasPipePorts = false;
         for (const UFGPipeConnectionComponent* Port : Pipes)
             if (Port->GetPipeConnectionType() != EPipeConnectionType::PCT_SNAP_ONLY)
+            {
                 AddPort(Port->GetComponentLocation(), Port->GetConnectorNormal());
+                HasPipePorts = true;
+            }
         const FVector Normal = NormalSum.GetSafeNormal2D();
         if (!PortBounds.IsValid || Normal.IsNearlyZero())
             return false;
 
-        // Center between the upper/lower I/O ports, not above them or beyond the
-        // crane's overhang. Their connection plane is 5 cm outside the wall, matching
-        // the frame's 5 cm backing depth at this unit scale.
-        Layout.Front = FTransform(Normal.Rotation(), PortBounds.GetCenter());
+        // Keep the port-centered height and lateral position while clearing the
+        // rendered center support, rather than mounting behind its decoration.
+        const float SupportProjection = HasPipePorts
+            ? FluidPlatformSupportProjection : CargoPlatformSupportProjection;
+        const FVector Position = PortBounds.GetCenter()
+            + Normal * (SupportProjection + PanelBackingDepth + 1.0f);
+        Layout.Front = FTransform(Normal.Rotation(), Position);
         Layout.bBackVisible = false;
         return true;
     }
@@ -324,13 +371,15 @@ FInfoScreenLayout AInfoScreen::DefaultContainerLayout(const AActor* Target)
     }
     // +X is the front normal of both our frame mesh and UWidgetComponent.
     const float Scale = FMath::Clamp(static_cast<float>(Bounds.GetSize().Y) / (PanelWidth + 16.0f), 0.35f, 1.0f);
+    const double MountOffset = IsValid(Target) && Target->IsA<AFGBuildableStorage>()
+        ? PanelBackingDepth * Scale : PanelOffset;
     FInfoScreenLayout Result;
     // A cargo subclass without usable I/O geometry still gets only one panel.
     Result.bBackVisible = !IsValid(Target) || !Target->IsA<AFGBuildableTrainPlatformCargo>();
     Result.Front = FTransform(FRotator::ZeroRotator,
-        FVector(Bounds.Max.X + PanelOffset, Center.Y, Center.Z), FVector(Scale));
+        FVector(Bounds.Max.X + MountOffset, Center.Y, Center.Z), FVector(Scale));
     Result.Back = FTransform(FRotator(0.0f, 180.0f, 0.0f),
-        FVector(Bounds.Min.X - PanelOffset, Center.Y, Center.Z), FVector(Scale));
+        FVector(Bounds.Min.X - MountOffset, Center.Y, Center.Z), FVector(Scale));
     return Result;
 }
 
@@ -356,7 +405,9 @@ void AInfoScreen::RefreshPresentation()
         ExtraSides, ExtraSides};
     if (ExtraSides)
     {
-        const FBox Bounds = SourceBounds(Source);
+        // Optional storage end panels must still clear the conveyor mouths.
+        const FBox Bounds = IsValid(Source) && Source->IsA<AFGBuildableStorage>()
+            ? Source->CalculateComponentsBoundingBoxInLocalSpace(true) : SourceBounds(Source);
         const FVector Center = Bounds.GetCenter();
         const float SideScale = FMath::Clamp(static_cast<float>(Bounds.GetSize().X) / (PanelWidth + 16.0f), 0.5f, 2.0f);
         Transforms[2] = FTransform(FRotator(0.0f, 90.0f, 0.0f),

@@ -1,24 +1,23 @@
 # InfoScreens
 
-**Version 0.0.4** · Mod reference: **`InfoScreens`** · [Source code](https://github.com/dberlin/InfoScreens)
+**Version 0.0.5** · Mod reference: **`InfoScreens`** · [Source code](https://github.com/dberlin/InfoScreens)
 
 Inventory and production information screens for Satisfactory, with support for single-player and multiplayer on Linux dedicated servers.
 
 ## Features
 
-- Automatic inventory screens on storage containers and both sides of freight cars.
-- One automatic screen on each solid or fluid freight platform, centered between its input/output ports.
+- Automatic inventory screens mounted against storage-container bodies and both sides of freight cars.
+- One automatic screen on each solid or fluid freight platform, centered between its input/output ports and in front of its central support.
 - Placeable **Info Screen** and **Big Info Screen** for supported machines, inventories, power storage, and AWESOME Sink information.
 - **Blueprint Info Screen** showing the combined configured input or output rates of a placed blueprint.
 - Item icons, quantities, capacities, progress bars, and fluid volumes in m³.
 - Adjustable screen placement and independent heading and item-list font sizes, with automatic fitting by default.
 - Saved layouts, configuration, and reusable presets.
 
-### New in 0.0.4
+### New in 0.0.5
 
-- Fixes freight-car screens disappearing in multiplayer.
-- Positions freight-car screens against the car body and keeps them attached as trains move.
-- Adds automatic screens to solid and fluid freight platforms.
+- Fixes storage-container screens floating away from the container body.
+- Fixes freight-platform screens clipping through their central supports, with separate placement for solid and fluid platforms.
 
 ## Requirements
 
@@ -38,14 +37,14 @@ Find **InfoScreens** in Satisfactory Mod Manager and install it for your game or
 
 1. Close the game or stop the server.
 2. Choose the matching archive:
-   - Windows: `InfoScreens-0.0.4-Windows-Install.zip`
-   - Linux dedicated server: `InfoScreens-0.0.4-LinuxServer-Install.zip`
+   - Windows: `InfoScreens-0.0.5-Windows-Install.zip`
+   - Linux dedicated server: `InfoScreens-0.0.5-LinuxServer-Install.zip`
 3. Extract it into the game or server installation folder containing **`FactoryGame`** and **`Engine`**. Allow existing InfoScreens files to be replaced when updating.
 4. Start the game or server.
 
 The resulting descriptor must be at `FactoryGame/Mods/InfoScreens/InfoScreens.uplugin`. Do **not** extract an install ZIP inside `Mods`; it already includes that directory structure. SML must be installed separately and is not replaced by these archives.
 
-`InfoScreens-0.0.4.zip` is the combined package for ficsit.app, not the manual-install archive.
+`InfoScreens-0.0.5.zip` is the combined package for ficsit.app, not the manual-install archive.
 
 ## Using screens
 
