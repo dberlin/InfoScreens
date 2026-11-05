@@ -1,7 +1,7 @@
 """Build InfoScreens for Windows clients and Linux dedicated servers.
 
 Activate ~/satisfactory-modding/activate.sh first. The default project is the
-isolated CL513885 SDK, not the older shared starter. --preflight changes nothing.
+isolated CL517554 SDK, not the older shared starter. --preflight changes nothing.
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
-SDK_COMMIT = "8eebc9e659f0b2ff4392d2f8cf6e2cff60c8ea49"
-GAME_CL = "513885"
+SDK_COMMIT = "a7e855031811d39bbdd12fc2563b87ea2d80cb5f"
+GAME_CL = "517554"
 WWISE_VERSION = "2025.1.6.9117.4248"
 ARTIFACTS = ("Windows", "LinuxServer")
 
