@@ -51,6 +51,17 @@ namespace InfoBlueprintReader::Detail
         return true;
     }
 
+    bool AccumulateManufacturer(const AFGBuildableManufacturer* Machine, bool Outputs,
+        FInfoScreenSnapshot& Snapshot)
+    {
+        // Standby is an explicit opt-out; blocked or starved machines still count.
+        if (!Machine || Machine->IsProductionPaused()) return false;
+        const TSubclassOf<UFGRecipe> RecipeClass = Machine->GetCurrentRecipe();
+        const UFGRecipe* Recipe = RecipeClass ? RecipeClass.GetDefaultObject() : nullptr;
+        return AccumulateRecipe(Recipe, Outputs, Machine->GetManufacturingSpeed(),
+            Machine->GetPendingPotential(), Machine->GetPendingProductionBoost(), Snapshot);
+    }
+
     void FinishSnapshot(FInfoScreenSnapshot& Snapshot, int32 Machines, bool Outputs)
     {
         // Descriptor package/name ordering is stable across membership iteration and
@@ -83,12 +94,7 @@ void InfoBlueprintReader::Read(const TArray<AFGBuildable*>& Buildings, bool Outp
         if (!IsValid(Building) || Building->IsActorBeingDestroyed()
             || !Building->HasActorBegunPlay() || !Building->HasAuthority()
             || Building->GetNetMode() == NM_Client) continue;
-        const AFGBuildableManufacturer* Machine = Cast<AFGBuildableManufacturer>(Building);
-        if (!Machine) continue;
-        const TSubclassOf<UFGRecipe> RecipeClass = Machine->GetCurrentRecipe();
-        const UFGRecipe* Recipe = RecipeClass ? RecipeClass.GetDefaultObject() : nullptr;
-        if (Detail::AccumulateRecipe(Recipe, Outputs, Machine->GetManufacturingSpeed(),
-            Machine->GetPendingPotential(), Machine->GetPendingProductionBoost(), OutSnapshot)) ++Machines;
+        if (Detail::AccumulateManufacturer(Cast<AFGBuildableManufacturer>(Building), Outputs, OutSnapshot)) ++Machines;
     }
     Detail::FinishSnapshot(OutSnapshot, Machines, Outputs);
 }

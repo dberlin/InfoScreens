@@ -1,6 +1,6 @@
 # InfoScreens
 
-**Version 0.0.7** · Mod reference: **`InfoScreens`** · [Source code](https://github.com/dberlin/InfoScreens)
+**Version 0.0.8** · Mod reference: **`InfoScreens`** · [Source code](https://github.com/dberlin/InfoScreens)
 
 Inventory and production information screens for Satisfactory, with support for single-player and multiplayer on Linux dedicated servers.
 
@@ -14,9 +14,9 @@ Inventory and production information screens for Satisfactory, with support for 
 - Adjustable screen placement and independent heading and item-list font sizes, with automatic fitting by default.
 - Saved layouts, configuration, and reusable presets.
 
-### New in 0.0.7
+### New in 0.0.8
 
-- Rebuilt for Satisfactory CL517554.
+- Blueprint totals exclude machines switched to standby. Enabled machines still count at their configured rates when backed up, starved, or unpowered.
 
 ## Requirements
 
@@ -36,14 +36,14 @@ Find **InfoScreens** in Satisfactory Mod Manager and install it for your game or
 
 1. Close the game or stop the server.
 2. Choose the matching archive:
-   - Windows: `InfoScreens-0.0.7-Windows-Install.zip`
-   - Linux dedicated server: `InfoScreens-0.0.7-LinuxServer-Install.zip`
+   - Windows: `InfoScreens-0.0.8-Windows-Install.zip`
+   - Linux dedicated server: `InfoScreens-0.0.8-LinuxServer-Install.zip`
 3. Extract it into the game or server installation folder containing **`FactoryGame`** and **`Engine`**. Allow existing InfoScreens files to be replaced when updating.
 4. Start the game or server.
 
 The resulting descriptor must be at `FactoryGame/Mods/InfoScreens/InfoScreens.uplugin`. Do **not** extract an install ZIP inside `Mods`; it already includes that directory structure. SML must be installed separately and is not replaced by these archives.
 
-`InfoScreens-0.0.7.zip` is the combined package for ficsit.app, not the manual-install archive.
+`InfoScreens-0.0.8.zip` is the combined package for ficsit.app, not the manual-install archive.
 
 ## Using screens
 
@@ -74,6 +74,7 @@ The screen totals recipe rates across that specific blueprint instance. For exam
 ```
 
 - Rates reflect configured recipes and clock speeds, not current throughput or inventory. Output amplification affects output totals only.
+- Machines explicitly switched to **Standby** contribute no inputs or outputs. Switching them back on restores their configured rates; being backed up, starved, or unpowered does not exclude an enabled machine.
 - Inputs and outputs are gross totals; ingredients produced elsewhere within the same blueprint are not subtracted.
 - Recipe-based machines such as constructors, assemblers, smelters, foundries, manufacturers, and refineries are included. Extractors, generators, and transport buildings are not included in recipe totals.
 - Each placed blueprint copy is tracked separately. Removing a machine removes its contribution without switching the screen to a neighboring blueprint.

@@ -16,6 +16,8 @@ namespace InfoBlueprintReader::Detail
 {
     bool AccumulateRecipe(const UFGRecipe* Recipe, bool Outputs, double ManufacturingSpeed,
         double Potential, double ProductionBoost, FInfoScreenSnapshot& Snapshot);
+    bool AccumulateManufacturer(const AFGBuildableManufacturer* Machine, bool Outputs,
+        FInfoScreenSnapshot& Snapshot);
     void FinishSnapshot(FInfoScreenSnapshot& Snapshot, int32 Machines, bool Outputs);
 }
 
@@ -92,6 +94,100 @@ bool FInfoBlueprintAggregateTest::RunTest(const FString& Parameters)
     AccumulateRecipe(Recipe, false, 1.0, 1.0, 1.0, Snapshot);
     FinishSnapshot(Snapshot, 2, false);
     TestTrue(TEXT("Membership order does not alter row order"), Snapshot.Rows[0].Item == First);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInfoBlueprintStandbyTest, "InfoScreens.Blueprint.ExplicitStandby",
+    EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FInfoBlueprintStandbyTest::RunTest(const FString& Parameters)
+{
+    const UWorld::InitializationValues Settings = UWorld::InitializationValues()
+        .AllowAudioPlayback(false).CreatePhysicsScene(false).CreateNavigation(false).CreateAISystem(false);
+    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true,
+        ERHIFeatureLevel::Num, &Settings);
+    if (!TestNotNull(TEXT("Isolated standby world"), World)) return false;
+    ON_SCOPE_EXIT { World->DestroyWorld(false); };
+
+    const TSubclassOf<UFGItemDescriptor> Sulfur = UFGItemDescriptor::StaticClass();
+    const TSubclassOf<UFGItemDescriptor> Coal = UFGResourceDescriptor::StaticClass();
+    UFGRecipe* Recipe = GetMutableDefault<UFGRecipe>();
+    FFloatProperty* Duration = FindFProperty<FFloatProperty>(UFGRecipe::StaticClass(), TEXT("mManufactoringDuration"));
+    if (!TestNotNull(TEXT("Recipe duration"), Duration)) return false;
+    // The real reader takes recipe classes. Restore the shared default after this test.
+    TGuardValue<TArray<FItemAmount>> RestoreInputs(
+        const_cast<TArray<FItemAmount>&>(Recipe->GetIngredients()), {{Sulfur, 5}, {Coal, 10}});
+    TGuardValue<TArray<FItemAmount>> RestoreOutputs(
+        const_cast<TArray<FItemAmount>&>(Recipe->GetProducts()), {{Coal, 3}});
+    TGuardValue<float> RestoreDuration(*Duration->ContainerPtrToValuePtr<float>(Recipe), 12.0f);
+
+    UClass* MachineClass = AFGBuildableManufacturer::StaticClass();
+    FClassProperty* RecipeProperty = FindFProperty<FClassProperty>(MachineClass, TEXT("mCurrentRecipe"));
+    FFloatProperty* Potential = FindFProperty<FFloatProperty>(MachineClass, TEXT("mPendingPotential"));
+    FFloatProperty* Boost = FindFProperty<FFloatProperty>(MachineClass, TEXT("mPendingProductionBoost"));
+    FBoolProperty* Paused = FindFProperty<FBoolProperty>(MachineClass, TEXT("mIsProductionPaused"));
+    if (!TestNotNull(TEXT("Machine recipe"), RecipeProperty)
+        || !TestNotNull(TEXT("Pending clock"), Potential)
+        || !TestNotNull(TEXT("Pending amplification"), Boost)
+        || !TestNotNull(TEXT("Explicit standby state"), Paused)) return false;
+
+    // Exercise the native manufacturer without depending on cooked building assets.
+    TGuardValue<EClassFlags> RestoreClassFlags(MachineClass->ClassFlags, MachineClass->ClassFlags & ~CLASS_Abstract);
+    AFGBuildableManufacturer* First = World->SpawnActor<AFGBuildableManufacturer>();
+    AFGBuildableManufacturer* Second = World->SpawnActor<AFGBuildableManufacturer>();
+    if (!TestNotNull(TEXT("First manufacturer"), First) || !TestNotNull(TEXT("Second manufacturer"), Second)) return false;
+    for (AFGBuildableManufacturer* Machine : {First, Second})
+    {
+        // SDK setters are stubs; seed the actual saved/replicated fields they represent.
+        RecipeProperty->SetObjectPropertyValue_InContainer(Machine, UFGRecipe::StaticClass());
+        Potential->SetPropertyValue_InContainer(Machine, Machine == First ? 1.0f : 1.5f);
+        Boost->SetPropertyValue_InContainer(Machine, Machine == First ? 2.0f : 4.0f);
+        TestFalse(TEXT("Non-producing machines must still contribute unless explicitly paused"), Machine->IsProducing());
+    }
+
+    struct FStandbyCase
+    {
+        const TCHAR* Name;
+        bool FirstPaused;
+        bool SecondPaused;
+        double SulfurInput;
+        double CoalInput;
+        double CoalOutput;
+    };
+    const FStandbyCase Cases[] = {
+        {TEXT("Both enabled but idle"), false, false, 62.5, 125.0, 120.0},
+        {TEXT("Second on standby"), false, true, 25.0, 50.0, 30.0},
+        {TEXT("Both on standby"), true, true, 0.0, 0.0, 0.0},
+        {TEXT("Only second resumed"), true, false, 37.5, 75.0, 90.0},
+        {TEXT("Both resumed"), false, false, 62.5, 125.0, 120.0},
+    };
+    const TArray<AFGBuildableManufacturer*> Buildings = {First, Second};
+    FInfoScreenSnapshot Snapshot;
+    for (const FStandbyCase& Case : Cases)
+    {
+        Paused->SetPropertyValue_InContainer(First, Case.FirstPaused);
+        Paused->SetPropertyValue_InContainer(Second, Case.SecondPaused);
+        for (const bool Outputs : {false, true})
+        {
+            Snapshot.Rows.Reset();
+            int32 Machines = 0;
+            for (const AFGBuildableManufacturer* Machine : Buildings)
+                if (InfoBlueprintReader::Detail::AccumulateManufacturer(Machine, Outputs, Snapshot)) ++Machines;
+            InfoBlueprintReader::Detail::FinishSnapshot(Snapshot, Machines, Outputs);
+            const FString Context = FString::Printf(TEXT("%s: %s"), Case.Name, Outputs ? TEXT("outputs") : TEXT("inputs"));
+            if (Case.FirstPaused && Case.SecondPaused)
+            {
+                TestEqual(Context + TEXT(" clears previous rates"), Snapshot.Rows.Num(), 0);
+                TestTrue(Context + TEXT(" clears previous item icon"), Snapshot.Icon == nullptr);
+            }
+            else
+            {
+                TestEqual(Context + TEXT(" coal rate"), RateFor(Snapshot, Coal), Outputs ? Case.CoalOutput : Case.CoalInput);
+                if (!Outputs)
+                    TestEqual(Context + TEXT(" sulfur rate"), RateFor(Snapshot, Sulfur), Case.SulfurInput);
+            }
+        }
+    }
     return true;
 }
 
