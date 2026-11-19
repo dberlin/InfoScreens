@@ -1,4 +1,5 @@
 #include "InfoScreenTypes.h"
+#include "InfoFactoryAccess.h"
 
 #include "Buildables/FGBuildableGenerator.h"
 #include "Buildables/FGBuildableGeneratorFuel.h"
@@ -252,12 +253,12 @@ namespace InfoScreenReader::Detail
 
     static void FactoryTelemetry(AFGBuildableFactory* Factory, FInfoScreenSnapshot& Snapshot)
     {
-        Snapshot.ClockPercent = Factory->GetCurrentPotential() * 100.0;
-        Snapshot.ProductivityPercent = Factory->GetProductivity() * 100.0;
+        Snapshot.ClockPercent = InfoFactoryAccess::GetCurrentPotential(Factory) * 100.0;
+        Snapshot.ProductivityPercent = InfoFactoryAccess::GetProductivity(Factory) * 100.0;
         Snapshot.bHasProduction = true;
-        Snapshot.Status = Factory->IsProductionPaused() ? LOCTEXT("Standby", "Standby")
-            : Factory->IsProducing() ? LOCTEXT("Producing", "Producing") : LOCTEXT("Idle", "Idle");
-        if (const UFGPowerInfoComponent* Power = Factory->GetPowerInfo())
+        Snapshot.Status = InfoFactoryAccess::IsProductionPaused(Factory) ? LOCTEXT("Standby", "Standby")
+            : InfoFactoryAccess::IsProducing(Factory) ? LOCTEXT("Producing", "Producing") : LOCTEXT("Idle", "Idle");
+        if (const UFGPowerInfoComponent* Power = InfoFactoryAccess::GetPowerInfo(Factory))
         {
             Snapshot.bHasPower = true;
             Snapshot.PowerMW = Power->GetActualConsumption();
@@ -280,7 +281,7 @@ namespace InfoScreenReader::Detail
     {
         Snapshot.Kind = EInfoScreenKind::Manufacturer;
         FactoryTelemetry(Source, Snapshot);
-        const TSubclassOf<UFGRecipe> RecipeClass = Source->GetCurrentRecipe();
+        const TSubclassOf<UFGRecipe> RecipeClass = InfoFactoryAccess::GetCurrentRecipe(Source);
         if (!RecipeClass)
         {
             Snapshot.Status = LOCTEXT("NoRecipe", "No recipe selected");
@@ -288,8 +289,10 @@ namespace InfoScreenReader::Detail
         }
         const UFGRecipe* Recipe = RecipeClass.GetDefaultObject();
         Snapshot.Detail = Recipe->GetDisplayName();
-        const UFGInventoryComponent* Input = Source->GetInputInventory();
-        const UFGInventoryComponent* Output = Source->GetOutputInventory();
+        static const FObjectProperty* InputProperty = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableManufacturer::StaticClass(), TEXT("mInputInventory"));
+        static const FObjectProperty* OutputProperty = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableManufacturer::StaticClass(), TEXT("mOutputInventory"));
+        const UFGInventoryComponent* Input = Cast<UFGInventoryComponent>(InputProperty->GetObjectPropertyValue_InContainer(Source));
+        const UFGInventoryComponent* Output = Cast<UFGInventoryComponent>(OutputProperty->GetObjectPropertyValue_InContainer(Source));
         const bool InputReady = InventoryReady(Input);
         const bool OutputReady = InventoryReady(Output);
         if ((!Recipe->GetIngredients().IsEmpty() && !InputReady)
@@ -297,7 +300,7 @@ namespace InfoScreenReader::Detail
         {
             Snapshot.Status = LOCTEXT("InventoryUnavailable", "Inventory unavailable");
         }
-        const double Cycle = Source->GetProductionCycleTime();
+        const double Cycle = InfoFactoryAccess::GetProductionCycleTime(Source);
         if (InputReady)
         {
             for (const FItemAmount& Ingredient : Recipe->GetIngredients())
@@ -318,7 +321,7 @@ namespace InfoScreenReader::Detail
                     LOCTEXT("Output", "Output buffer"));
                 Row.bHasRate = Cycle > 0.0;
                 Row.PerMinute = ConfiguredRate(ItemAmount(Product.Amount, Product.ItemClass), Cycle,
-                    Source->GetCurrentProductionBoost());
+                    InfoFactoryAccess::GetCurrentProductionBoost(Source));
                 if (!Snapshot.Icon) Snapshot.Icon = Product.ItemClass;
             }
         }
@@ -328,7 +331,8 @@ namespace InfoScreenReader::Detail
     {
         Snapshot.Kind = EInfoScreenKind::Extractor;
         FactoryTelemetry(Source, Snapshot);
-        const TScriptInterface<IFGExtractableResourceInterface> Resource = Source->GetExtractableResource();
+        static const FObjectProperty* ResourceProperty = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableResourceExtractorBase::StaticClass(), TEXT("mExtractableResource"));
+        const TScriptInterface<IFGExtractableResourceInterface> Resource(ResourceProperty->GetObjectPropertyValue_InContainer(Source));
         if (!IsValid(Resource.GetObject()) || !Resource.GetInterface())
         {
             Snapshot.Status = LOCTEXT("NoResource", "No resource source");
@@ -342,7 +346,8 @@ namespace InfoScreenReader::Detail
         }
         Snapshot.Icon = Item;
         Snapshot.Detail = UFGItemDescriptor::GetItemName(Item);
-        const UFGInventoryComponent* Output = Source->GetOutputInventory();
+        static UFunction* OutputFunction = AFGBuildableResourceExtractorBase::StaticClass()->FindFunctionByName(TEXT("GetOutputInventory"));
+        const UFGInventoryComponent* Output = InfoFactoryAccess::InvokeGetter<UFGInventoryComponent*>(Source, OutputFunction);
         if (!InventoryReady(Output))
         {
             Snapshot.Status = LOCTEXT("InventoryUnavailable", "Inventory unavailable");
@@ -374,12 +379,12 @@ namespace InfoScreenReader::Detail
     static void ReadGenerator(AFGBuildableGenerator* Source, FInfoScreenSnapshot& Snapshot)
     {
         Snapshot.Kind = EInfoScreenKind::Generator;
-        Snapshot.Status = Source->IsProductionPaused() ? LOCTEXT("Standby", "Standby")
-            : Source->IsProducing() ? LOCTEXT("Generating", "Generating") : LOCTEXT("Idle", "Idle");
-        Snapshot.ClockPercent = Source->GetCurrentPotential() * 100.0;
-        Snapshot.ProductivityPercent = Source->GetProductivity() * 100.0;
+        Snapshot.Status = InfoFactoryAccess::IsProductionPaused(Source) ? LOCTEXT("Standby", "Standby")
+            : InfoFactoryAccess::IsProducing(Source) ? LOCTEXT("Generating", "Generating") : LOCTEXT("Idle", "Idle");
+        Snapshot.ClockPercent = InfoFactoryAccess::GetCurrentPotential(Source) * 100.0;
+        Snapshot.ProductivityPercent = InfoFactoryAccess::GetProductivity(Source) * 100.0;
         Snapshot.bHasProduction = true;
-        if (const UFGPowerInfoComponent* Power = Source->GetPowerInfo())
+        if (const UFGPowerInfoComponent* Power = InfoFactoryAccess::GetPowerInfo(Source))
         {
             Snapshot.bHasPower = true;
             Snapshot.PowerMW = Power->GetBaseProduction() + Power->GetRegulatedDynamicProduction()
@@ -388,17 +393,21 @@ namespace InfoScreenReader::Detail
         }
         AFGBuildableGeneratorFuel* FuelGenerator = Cast<AFGBuildableGeneratorFuel>(Source);
         if (!FuelGenerator) return;
-        const UFGInventoryComponent* Fuel = FuelGenerator->GetFuelInventory();
+        static const FObjectProperty* FuelProperty = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableGeneratorFuel::StaticClass(), TEXT("mFuelInventory"));
+        const UFGInventoryComponent* Fuel = Cast<UFGInventoryComponent>(FuelProperty->GetObjectPropertyValue_InContainer(FuelGenerator));
         if (!InventoryReady(Fuel))
         {
             Snapshot.Status = LOCTEXT("InventoryUnavailable", "Inventory unavailable");
         }
         else
         {
-            const TSubclassOf<UFGItemDescriptor> Supplemental = FuelGenerator->GetRequiresSupplementalResource()
-                ? FuelGenerator->GetSupplementalResourceClass() : nullptr;
+            static const FBoolProperty* RequiresSupplemental = InfoFactoryAccess::RequireProperty<FBoolProperty>(AFGBuildableGeneratorFuel::StaticClass(), TEXT("mRequiresSupplementalResource"));
+            static const FClassProperty* SupplementalClass = InfoFactoryAccess::RequireProperty<FClassProperty>(AFGBuildableGeneratorFuel::StaticClass(), TEXT("mSupplementalResourceClass"));
+            const TSubclassOf<UFGItemDescriptor> Supplemental = RequiresSupplemental->GetPropertyValue_InContainer(FuelGenerator)
+                ? Cast<UClass>(SupplementalClass->GetObjectPropertyValue_InContainer(FuelGenerator)) : nullptr;
             AppendInventory(Snapshot, Fuel, LOCTEXT("FuelBuffer", "Fuel buffer"), Supplemental);
-            const TSubclassOf<UFGItemDescriptor> CurrentFuel = FuelGenerator->GetCurrentFuelClass();
+            static const FClassProperty* FuelClass = InfoFactoryAccess::RequireProperty<FClassProperty>(AFGBuildableGeneratorFuel::StaticClass(), TEXT("mCurrentFuelClass"));
+            const TSubclassOf<UFGItemDescriptor> CurrentFuel = Cast<UClass>(FuelClass->GetObjectPropertyValue_InContainer(FuelGenerator));
             if (CurrentFuel)
             {
                 if (!Snapshot.Rows.ContainsByPredicate([CurrentFuel](const FInfoScreenRow& Row) { return Row.Item == CurrentFuel; }))
@@ -422,7 +431,8 @@ namespace InfoScreenReader::Detail
         }
         if (const AFGBuildableGeneratorNuclear* Nuclear = Cast<AFGBuildableGeneratorNuclear>(Source))
         {
-            const UFGInventoryComponent* Waste = Nuclear->GetWasteInventory();
+            static const FObjectProperty* WasteProperty = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableGeneratorNuclear::StaticClass(), TEXT("mOutputInventory"));
+            const UFGInventoryComponent* Waste = Cast<UFGInventoryComponent>(WasteProperty->GetObjectPropertyValue_InContainer(Nuclear));
             if (InventoryReady(Waste))
             {
                 const int32 PreviousRows = Snapshot.Rows.Num();
@@ -497,20 +507,29 @@ bool InfoScreenReader::Read(AActor* Source, FInfoScreenSnapshot& OutSnapshot)
     if (AFGFreightWagon* Freight = Cast<AFGFreightWagon>(Source))
         ReadInventory(Freight->GetFreightInventory(), OutSnapshot, Freight);
     else if (AFGBuildableStorage* Storage = Cast<AFGBuildableStorage>(Source))
-        ReadInventory(Storage->GetStorageInventory(), OutSnapshot);
+    {
+        static const FObjectProperty* Inventory = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableStorage::StaticClass(), TEXT("mStorageInventory"));
+        ReadInventory(Cast<UFGInventoryComponent>(Inventory->GetObjectPropertyValue_InContainer(Storage)), OutSnapshot);
+    }
     else if (AFGBuildableTrainPlatformCargo* Platform = Cast<AFGBuildableTrainPlatformCargo>(Source))
-        ReadInventory(Platform->GetInventory(), OutSnapshot);
+    {
+        static const FObjectProperty* Inventory = InfoFactoryAccess::RequireProperty<FObjectProperty>(AFGBuildableTrainPlatformCargo::StaticClass(), TEXT("mInventory"));
+        ReadInventory(Cast<UFGInventoryComponent>(Inventory->GetObjectPropertyValue_InContainer(Platform)), OutSnapshot);
+    }
     else if (AFGBuildablePipeReservoir* Reservoir = Cast<AFGBuildablePipeReservoir>(Source))
     {
         OutSnapshot.Kind = EInfoScreenKind::FluidBuffer;
-        if (const FFluidBox* Box = Reservoir->GetFluidBox()) FluidSummary(OutSnapshot, *Box, Reservoir->GetFluidDescriptor());
-        else OutSnapshot.Status = LOCTEXT("FluidUnavailable", "Fluid buffer unavailable");
+        static const FStructProperty* FluidBox = InfoFactoryAccess::RequireProperty<FStructProperty>(AFGBuildablePipeReservoir::StaticClass(), TEXT("mFluidBox"));
+        FluidSummary(OutSnapshot, *FluidBox->ContainerPtrToValuePtr<FFluidBox>(Reservoir), Reservoir->GetFluidDescriptor());
     }
     else if (AFGBuildableManufacturer* Manufacturer = Cast<AFGBuildableManufacturer>(Source)) ReadManufacturer(Manufacturer, OutSnapshot);
     else if (AFGBuildableResourceExtractor* Extractor = Cast<AFGBuildableResourceExtractor>(Source)) ReadExtractor(Extractor, OutSnapshot);
     else if (AFGBuildableGenerator* Generator = Cast<AFGBuildableGenerator>(Source)) ReadGenerator(Generator, OutSnapshot);
     else if (AFGBuildablePowerStorage* Battery = Cast<AFGBuildablePowerStorage>(Source))
-        BatterySummary(OutSnapshot, Battery->GetPowerStore(), Battery->GetPowerStoreCapacity(), Battery->GetPowerInput(), Battery->GetPowerOutput());
+    {
+        static const FFloatProperty* Capacity = InfoFactoryAccess::RequireProperty<FFloatProperty>(AFGBuildablePowerStorage::StaticClass(), TEXT("mPowerStoreCapacity"));
+        BatterySummary(OutSnapshot, Battery->GetPowerStore(), Capacity->GetPropertyValue_InContainer(Battery), Battery->GetPowerInput(), Battery->GetPowerOutput());
+    }
     else if (AFGBuildableResourceSink* Sink = Cast<AFGBuildableResourceSink>(Source)) ReadSink(Sink, OutSnapshot);
     return true;
 }

@@ -22,7 +22,7 @@ DESCRIPTOR = {
     "Version": 0,
     "VersionName": "0.0.1",
     "SemVersion": "0.0.1",
-    "GameVersion": "517554",
+    "GameVersion": "520140",
     "RequiredOnRemote": True,
     "Modules": [{"Name": "InfoScreens", "Type": "Runtime"}],
 }

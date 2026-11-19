@@ -20,7 +20,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
 SDK_COMMIT = "a7e855031811d39bbdd12fc2563b87ea2d80cb5f"
-GAME_CL = "517554"
+SDK_GAME_CL = "517554"
+GAME_CL = "520140"
 WWISE_VERSION = "2025.1.6.9117.4248"
 ARTIFACTS = ("Windows", "LinuxServer")
 
@@ -36,8 +37,8 @@ def preflight(engine: Path, project: Path) -> None:
     elif metadata(project).get("EngineAssociation") != "5.6.1-CSS":
         failures.append("Project must use custom engine association 5.6.1-CSS")
     version = project.parent / "Source/FactoryGame/currentVersion.txt"
-    if not version.is_file() or version.read_text().strip() != GAME_CL:
-        failures.append(f"SDK headers must target CL{GAME_CL}; use upstream {SDK_COMMIT}")
+    if not version.is_file() or version.read_text().strip() != SDK_GAME_CL:
+        failures.append(f"SDK headers must target CL{SDK_GAME_CL}; use upstream {SDK_COMMIT}")
     engine_version = engine / "Engine/Build/Build.version"
     if not engine_version.is_file():
         failures.append(f"Missing custom engine: {engine}")

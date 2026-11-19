@@ -36,7 +36,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
-GAME_CL = "517554"
+GAME_CL = "520140"
 ENDPOINT = "https://api.ficsit.app/v2/query"
 CHUNK_SIZE = 10_000_000  # Matches the official frontend; S3 parts are 1-based.
 MAX_PARTS = 100  # Resolver's actual limit (its older error text says 41).

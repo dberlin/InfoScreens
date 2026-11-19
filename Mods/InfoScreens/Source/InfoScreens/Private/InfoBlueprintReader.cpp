@@ -1,4 +1,5 @@
 #include "InfoBlueprintReader.h"
+#include "InfoFactoryAccess.h"
 
 #include "Buildables/FGBuildableManufacturer.h"
 #include "FGRecipe.h"
@@ -55,11 +56,11 @@ namespace InfoBlueprintReader::Detail
         FInfoScreenSnapshot& Snapshot)
     {
         // Standby is an explicit opt-out; blocked or starved machines still count.
-        if (!Machine || Machine->IsProductionPaused()) return false;
-        const TSubclassOf<UFGRecipe> RecipeClass = Machine->GetCurrentRecipe();
+        if (!Machine || InfoFactoryAccess::IsProductionPaused(Machine)) return false;
+        const TSubclassOf<UFGRecipe> RecipeClass = InfoFactoryAccess::GetCurrentRecipe(Machine);
         const UFGRecipe* Recipe = RecipeClass ? RecipeClass.GetDefaultObject() : nullptr;
-        return AccumulateRecipe(Recipe, Outputs, Machine->GetManufacturingSpeed(),
-            Machine->GetPendingPotential(), Machine->GetPendingProductionBoost(), Snapshot);
+        return AccumulateRecipe(Recipe, Outputs, InfoFactoryAccess::GetManufacturingSpeed(Machine),
+            InfoFactoryAccess::GetPendingPotential(Machine), InfoFactoryAccess::GetPendingProductionBoost(Machine), Snapshot);
     }
 
     void FinishSnapshot(FInfoScreenSnapshot& Snapshot, int32 Machines, bool Outputs)
