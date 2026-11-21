@@ -1,7 +1,7 @@
 """Build InfoScreens for Windows clients and Linux dedicated servers.
 
 Activate ~/satisfactory-modding/activate.sh first. The default project is the
-isolated CL517554 SDK, not the older shared starter. --preflight changes nothing.
+isolated CL520140 SDK. --preflight changes nothing.
 """
 
 from __future__ import annotations
@@ -19,8 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
-SDK_COMMIT = "a7e855031811d39bbdd12fc2563b87ea2d80cb5f"
-SDK_GAME_CL = "517554"
+SDK_COMMIT = "0170e5feece4bebcb4baa2ec4806587300160285"  # SML v3.12.1
 GAME_CL = "520140"
 WWISE_VERSION = "2025.1.6.9117.4248"
 ARTIFACTS = ("Windows", "LinuxServer")
@@ -37,15 +36,15 @@ def preflight(engine: Path, project: Path) -> None:
     elif metadata(project).get("EngineAssociation") != "5.6.1-CSS":
         failures.append("Project must use custom engine association 5.6.1-CSS")
     version = project.parent / "Source/FactoryGame/currentVersion.txt"
-    if not version.is_file() or version.read_text().strip() != SDK_GAME_CL:
-        failures.append(f"SDK headers must target CL{SDK_GAME_CL}; use upstream {SDK_COMMIT}")
+    if not version.is_file() or version.read_text().strip() != GAME_CL:
+        failures.append(f"SDK headers must target CL{GAME_CL}; use upstream {SDK_COMMIT}")
     engine_version = engine / "Engine/Build/Build.version"
     if not engine_version.is_file():
         failures.append(f"Missing custom engine: {engine}")
     else:
         data = metadata(engine_version)
-        if (data.get("MajorVersion"), data.get("MinorVersion"), data.get("PatchVersion"), data.get("Changelist")) != (5, 6, 1, 83):
-            failures.append("Expected installed UE5.6.1-CSS changelist83")
+        if (data.get("MajorVersion"), data.get("MinorVersion"), data.get("PatchVersion"), data.get("Changelist")) != (5, 6, 1, 87):
+            failures.append("Expected installed UE 5.6.1-css-87")
     wwise = project.parent / "Plugins/Wwise/Wwise.uplugin"
     if not wwise.is_file() or metadata(wwise).get("VersionName") != WWISE_VERSION:
         failures.append(f"Integrate Wwise {WWISE_VERSION} into this isolated project (CLI integration version2025.1.6.4248)")
@@ -171,8 +170,9 @@ def package(engine: Path, project: Path, output: Path) -> None:
 def main() -> int:
     root = Path.home() / "satisfactory-modding"
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine", type=Path, default=root / "UnrealEngineCSS")
-    parser.add_argument("--project", type=Path, default=root / "info-screens-workspace/sdk/FactoryGame.uproject")
+    parser.add_argument("--engine", type=Path, default=root / "UnrealEngineCSS-87")
+    # Keep the SDK path short for Windows import-library linking under Wine.
+    parser.add_argument("--project", type=Path, default=root / "sdk-520140/FactoryGame.uproject")
     parser.add_argument("--output", type=Path, help="Output directory (default: dist/<SemVersion>)")
     parser.add_argument("--preflight", action="store_true")
     args = parser.parse_args()
