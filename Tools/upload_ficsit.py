@@ -36,7 +36,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
-GAME_CL = "520140"
+GAME_VERSION_RANGE = ">=520140"
 ENDPOINT = "https://api.ficsit.app/v2/query"
 CHUNK_SIZE = 10_000_000  # Matches the official frontend; S3 parts are 1-based.
 MAX_PARTS = 100  # Resolver's actual limit (its older error text says 41).
@@ -120,8 +120,8 @@ def validate_archive(path: Path) -> str:
             match = re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version)
             if not match or descriptor.get("VersionName") != version or descriptor.get("Version") != int(match[1]):
                 raise UploadError("Plugin descriptor must have matching release SemVersion, VersionName and integer major Version")
-            if descriptor.get("GameVersion") != GAME_CL or descriptor.get("RequiredOnRemote") is not True:
-                raise UploadError(f"Plugin descriptor must target CL{GAME_CL} and require the mod on remote peers")
+            if descriptor.get("GameVersion") != GAME_VERSION_RANGE or descriptor.get("RequiredOnRemote") is not True:
+                raise UploadError(f"Plugin descriptor must require game build {GAME_VERSION_RANGE} and the mod on remote peers")
             dependencies = descriptor.get("Plugins", [])
             if not isinstance(dependencies, list):
                 raise UploadError("Plugin dependencies must be a list")

@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MOD = "InfoScreens"
 SDK_COMMIT = "0170e5feece4bebcb4baa2ec4806587300160285"  # SML v3.12.1
 GAME_CL = "520140"
+GAME_VERSION_RANGE = ">=520140"
 WWISE_VERSION = "2025.1.6.9117.4248"
 ARTIFACTS = ("Windows", "LinuxServer")
 
@@ -88,8 +89,8 @@ def run(command: list[str], log: Path) -> None:
 def validate_archive(path: Path, platform: str) -> None:
     with zipfile.ZipFile(path) as archive:
         descriptor = json.loads(archive.read(f"{MOD}.uplugin"))
-        if descriptor.get("GameVersion") != GAME_CL or not descriptor.get("RequiredOnRemote"):
-            raise RuntimeError(f"Wrong game/remote compatibility in {path}")
+        if descriptor.get("GameVersion") != GAME_VERSION_RANGE or descriptor.get("RequiredOnRemote") is not True:
+            raise RuntimeError(f"Expected game version range {GAME_VERSION_RANGE} and RequiredOnRemote in {path}")
         manifests = [name for name in archive.namelist() if name.endswith(".modules")]
         targets = {"FactoryGameEGS", "FactoryGameSteam"} if platform == "Windows" else {"FactoryServer"}
         found: set[str] = set()

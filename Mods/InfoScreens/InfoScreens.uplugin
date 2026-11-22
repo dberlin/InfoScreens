@@ -1,9 +1,9 @@
 {
   "FileVersion": 3,
   "Version": 0,
-  "VersionName": "0.0.10",
-  "SemVersion": "0.0.10",
-  "GameVersion": "520140",
+  "VersionName": "0.0.11",
+  "SemVersion": "0.0.11",
+  "GameVersion": ">=520140",
   "FriendlyName": "Info Screens",
   "Description": "Automatic container displays and placeable factory information screens with server-authoritative multiplayer support.",
   "Category": "Factory",

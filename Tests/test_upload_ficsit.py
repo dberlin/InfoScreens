@@ -22,7 +22,7 @@ DESCRIPTOR = {
     "Version": 0,
     "VersionName": "0.0.1",
     "SemVersion": "0.0.1",
-    "GameVersion": "520140",
+    "GameVersion": ">=520140",
     "RequiredOnRemote": True,
     "Modules": [{"Name": "InfoScreens", "Type": "Runtime"}],
 }
@@ -103,6 +103,11 @@ class ArchiveTests(unittest.TestCase):
     def test_accepts_merged_archive_without_repacking(self):
         write_archive(self.archive, descriptor={**DESCRIPTOR, "SemVersion": "0.0.2", "VersionName": "0.0.2"})
         self.assertEqual(uploader.validate_archive(self.archive), "0.0.2")
+
+    def test_rejects_archive_pinned_to_one_game_build(self):
+        write_archive(self.archive, descriptor={**DESCRIPTOR, "GameVersion": "520140"})
+        with self.assertRaises(uploader.UploadError):
+            uploader.validate_archive(self.archive)
 
     def test_rejects_install_wrapper_before_network(self):
         write_archive(self.archive, "FactoryGame/Mods/InfoScreens/")
